@@ -28,7 +28,12 @@ func TestRenderLinksPublishesHealthyRouteWithoutLetterSuffix(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := string(decoded)
-	if !strings.Contains(text, "🔀 🇹🇼｜Entry-Alpha") || strings.Contains(text, "Entry-Alpha A") || strings.Contains(text, "｜｜") {
+	lines := strings.Split(strings.TrimSpace(text), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("rendered subscription = %q", text)
+	}
+	routed, err := parseVLESSLink(lines[1])
+	if err != nil || routed.Fragment != "🔀 🇹🇼｜Entry-Alpha" || strings.Contains(routed.Fragment, "Entry-Alpha A") || strings.Contains(routed.Fragment, "｜｜") {
 		t.Fatalf("rendered subscription = %q", text)
 	}
 }
