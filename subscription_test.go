@@ -66,7 +66,6 @@ func TestRenderSubscriptionsRejectRoutedHysteria(t *testing.T) {
 	base := Credential{ID: "native-a", AccountID: "account-a", Kind: NativeCredential, User: "Phone", Identity: Identity(baseSecret), EntryID: "entry", Enabled: true}
 	route := Credential{ID: "route-a", AccountID: "account-a", Kind: RouteCredential, User: RouteUser("grant-a"), Identity: Identity(routeSecret), EntryID: "entry", EgressID: "egress-a", Enabled: true}
 	baseMaterial := CredentialMaterial{Credential: base, ProtocolID: baseSecret, HysteriaAuth: "base-hy2", HysteriaIdentity: Identity("base-hy2")}
-	routeMaterial := CredentialMaterial{Credential: route, ProtocolID: routeSecret}
 	endpoint := testHysteriaEndpoint(t)
 	baseLink, err := Hysteria2LinkForCredential(endpoint, baseMaterial, "🇺🇸｜Entry · HY2")
 	if err != nil {
