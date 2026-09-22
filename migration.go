@@ -5,16 +5,18 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"maps"
 	"slices"
 	"strings"
 )
 
 type ImportAccount struct {
-	Account                      Account       `json:"account"`
-	SubscriptionTokenFingerprint string        `json:"subscriptionTokenFingerprint"`
-	Credentials                  []Credential  `json:"credentials"`
-	Grants                       []RouteGrant  `json:"grants"`
-	Usage                        []UsageMember `json:"usage"`
+	Account                      Account           `json:"account"`
+	SubscriptionTokenFingerprint string            `json:"subscriptionTokenFingerprint"`
+	Credentials                  []Credential      `json:"credentials"`
+	HysteriaIdentities           map[string]string `json:"hysteriaIdentities,omitempty"`
+	Grants                       []RouteGrant      `json:"grants"`
+	Usage                        []UsageMember     `json:"usage"`
 }
 
 type ImportPlan struct {
@@ -26,15 +28,19 @@ type ImportPlan struct {
 // writes any state. It carries only the subscription-token fingerprint; the
 // caller must move the raw token directly between encrypted stores.
 func PlanImport(accounts []ImportAccount) (ImportPlan, error) {
-	if len(accounts) == 0 || len(accounts) > 10000 {
+	if len(accounts) > 10000 {
 		return ImportPlan{}, errors.New("meridian: invalid import inventory")
 	}
 	plan := ImportPlan{Accounts: slices.Clone(accounts)}
+	if plan.Accounts == nil {
+		plan.Accounts = []ImportAccount{}
+	}
 	slices.SortFunc(plan.Accounts, func(a, b ImportAccount) int { return strings.Compare(a.Account.ID, b.Account.ID) })
 	seenAccounts := map[string]bool{}
 	seenCredentialIDs := map[string]bool{}
 	seenUsers := map[string]bool{}
-	seenIdentities := map[string]bool{}
+	seenEntryIdentities := map[string]bool{}
+	seenHysteriaIdentities := map[string]bool{}
 	seenTokens := map[string]bool{}
 	seenGrantIDs := map[string]bool{}
 	for accountIndex := range plan.Accounts {
@@ -44,6 +50,7 @@ func PlanImport(accounts []ImportAccount) (ImportPlan, error) {
 		}
 		seenAccounts[item.Account.ID], seenTokens[item.SubscriptionTokenFingerprint] = true, true
 		item.Credentials = slices.Clone(item.Credentials)
+		item.HysteriaIdentities = maps.Clone(item.HysteriaIdentities)
 		item.Grants = slices.Clone(item.Grants)
 		item.Usage = slices.Clone(item.Usage)
 		slices.SortFunc(item.Credentials, func(a, b Credential) int { return strings.Compare(a.ID, b.ID) })
@@ -51,11 +58,20 @@ func PlanImport(accounts []ImportAccount) (ImportPlan, error) {
 		slices.SortFunc(item.Usage, func(a, b UsageMember) int { return strings.Compare(a.CredentialID, b.CredentialID) })
 		credentialByID := map[string]Credential{}
 		for _, credential := range item.Credentials {
-			if credential.Validate() != nil || credential.AccountID != item.Account.ID || seenCredentialIDs[credential.ID] || seenUsers[credential.User] || seenIdentities[credential.Identity] {
+			entryIdentity := credential.EntryID + "\x00" + string(credential.Identity)
+			if credential.Validate() != nil || credential.AccountID != item.Account.ID || seenCredentialIDs[credential.ID] || seenUsers[credential.User] || seenEntryIdentities[entryIdentity] {
 				return ImportPlan{}, errors.New("meridian: conflicting import credential")
 			}
-			seenCredentialIDs[credential.ID], seenUsers[credential.User], seenIdentities[credential.Identity] = true, true, true
+			seenCredentialIDs[credential.ID], seenUsers[credential.User], seenEntryIdentities[entryIdentity] = true, true, true
 			credentialByID[credential.ID] = credential
+		}
+		for credentialID, identity := range item.HysteriaIdentities {
+			credential, exists := credentialByID[credentialID]
+			entryIdentity := credential.EntryID + "\x00" + identity
+			if !exists || credential.Kind != NativeCredential || !ValidIdentity(identity) || seenHysteriaIdentities[entryIdentity] {
+				return ImportPlan{}, errors.New("meridian: conflicting import Hysteria credential")
+			}
+			seenHysteriaIdentities[entryIdentity] = true
 		}
 		for _, grant := range item.Grants {
 			base, hasBase := credentialByID[grant.Base.ID]

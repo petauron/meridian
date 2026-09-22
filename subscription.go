@@ -14,16 +14,20 @@ import (
 const maxSubscriptionBytes = 4 << 20
 
 type PublishedRoute struct {
-	Grant            RouteGrant `json:"grant"`
-	EntryName        string     `json:"entryName"`
-	EgressRegionCode string     `json:"egressRegionCode,omitempty"`
-	BaseLink         string     `json:"baseLink"`
-	RouteLink        string     `json:"routeLink"`
+	Grant                 RouteGrant   `json:"grant"`
+	Protocol              ProtocolKind `json:"protocol"`
+	EntryName             string       `json:"entryName"`
+	EgressRegionCode      string       `json:"egressRegionCode,omitempty"`
+	BaseLink              string       `json:"baseLink"`
+	RouteLink             string       `json:"routeLink"`
+	BaseProtocolIdentity  string       `json:"baseProtocolIdentity"`
+	RouteProtocolIdentity string       `json:"routeProtocolIdentity"`
 }
 
 type NativeEntry struct {
-	Credential Credential `json:"credential"`
-	Link       string     `json:"link"`
+	Material CredentialMaterial `json:"material"`
+	Protocol ProtocolKind       `json:"protocol"`
+	Link     string             `json:"link"`
 }
 
 func RenderLinks(entries []NativeEntry, accountID string, mode PublishingMode, routes []PublishedRoute, encoded bool) ([]byte, error) {
@@ -38,38 +42,15 @@ func RenderLinks(entries []NativeEntry, accountID string, mode PublishingMode, r
 }
 
 func RenderMihomo(entries []NativeEntry, accountID string, mode PublishingMode, routes []PublishedRoute) ([]byte, error) {
-	plain, err := nativeSubscriptionLines(entries, accountID)
-	if err != nil {
+	if _, err := nativeSubscriptionLines(entries, accountID); err != nil {
 		return nil, err
 	}
 	proxies := make([]any, 0, len(entries))
 	names := make([]any, 0, len(entries)+1)
-	for _, raw := range strings.Split(strings.TrimSpace(string(plain)), "\n") {
-		link, err := parseVLESSLink(raw)
+	for _, entry := range entries {
+		proxy, name, err := mihomoProxy(entry)
 		if err != nil {
 			return nil, err
-		}
-		port, err := strconv.Atoi(link.Port())
-		if err != nil || port < 1 || port > 65535 {
-			return nil, errors.New("meridian: invalid subscription port")
-		}
-		query := link.Query()
-		name := strings.TrimSpace(link.Fragment)
-		if name == "" {
-			return nil, errors.New("meridian: subscription name is required")
-		}
-		realityOptions := map[string]any{"public-key": query.Get("pbk"), "short-id": query.Get("sid")}
-		if spiderX := query.Get("spx"); spiderX != "" {
-			realityOptions["spider-x"] = spiderX
-		}
-		proxy := map[string]any{
-			"name": name, "type": "vless", "server": link.Hostname(), "port": port,
-			"uuid": link.User.Username(), "network": query.Get("type"), "tls": true,
-			"servername": query.Get("sni"), "flow": query.Get("flow"), "udp": true,
-			"reality-opts": realityOptions,
-		}
-		if fingerprint := query.Get("fp"); fingerprint != "" {
-			proxy["client-fingerprint"] = fingerprint
 		}
 		proxies = append(proxies, proxy)
 		names = append(names, name)
@@ -97,26 +78,69 @@ func nativeSubscriptionLines(entries []NativeEntry, accountID string) ([]byte, e
 	totalBytes := 0
 	for _, entry := range entries {
 		totalBytes += len(entry.Link)
-		if entry.Credential.Validate() != nil || entry.Credential.Kind != NativeCredential || entry.Credential.AccountID != accountID || !entry.Credential.Enabled || seenCredentials[entry.Credential.ID] {
+		credential := entry.Material.Credential
+		credentialKey := credential.ID + "\x00" + string(entry.Protocol)
+		if entry.Material.Validate() != nil || !entry.Protocol.Valid() || credential.Kind != NativeCredential || credential.AccountID != accountID || !credential.Enabled || seenCredentials[credentialKey] {
 			return nil, errors.New("meridian: invalid native subscription credential")
 		}
-		link, err := parseVLESSLink(strings.TrimSpace(entry.Link))
+		link, err := parseProtocolLink(strings.TrimSpace(entry.Link), entry.Protocol)
 		if err != nil {
 			return nil, errors.New("meridian: native subscription identity changed")
 		}
 		port, portErr := strconv.Atoi(link.Port())
-		if portErr != nil || port < 1 || port > 65535 || totalBytes > maxSubscriptionBytes || Identity(link.User.Username()) != entry.Credential.Identity || strings.TrimSpace(link.Fragment) == "" || len([]rune(link.Fragment)) > MaxDisplayNameLength || link.Query().Get("sni") == "" || link.Query().Get("pbk") == "" {
+		expectedIdentity := credential.Identity
+		if entry.Protocol == Hysteria2 {
+			expectedIdentity = entry.Material.HysteriaIdentity
+		}
+		if portErr != nil || port < 1 || port > 65535 || totalBytes > maxSubscriptionBytes || protocolLinkIdentity(link, entry.Protocol) != expectedIdentity || strings.TrimSpace(link.Fragment) == "" || len([]rune(link.Fragment)) > MaxDisplayNameLength || link.Query().Get("sni") == "" || entry.Protocol == VLESSReality && link.Query().Get("pbk") == "" {
 			return nil, errors.New("meridian: native subscription identity changed")
 		}
 		name := strings.TrimSpace(link.Fragment)
-		routeKey := link.Host + "\x00" + link.Query().Get("sni") + "\x00" + link.Query().Get("pbk") + "\x00" + link.Query().Get("sid")
+		routeKey := string(entry.Protocol) + "\x00" + link.Host + "\x00" + link.Query().Get("sni") + "\x00" + link.Query().Get("pbk") + "\x00" + link.Query().Get("sid")
 		if seenNames[name] || seenRoutes[routeKey] {
 			return nil, errors.New("meridian: ambiguous native subscription inventory")
 		}
-		seenNames[name], seenRoutes[routeKey], seenCredentials[entry.Credential.ID] = true, true, true
-		lines = append(lines, link.String())
+		seenNames[name], seenRoutes[routeKey], seenCredentials[credentialKey] = true, true, true
+		lines = append(lines, strings.TrimSpace(entry.Link))
 	}
 	return []byte(strings.Join(lines, "\n") + "\n"), nil
+}
+
+func mihomoProxy(entry NativeEntry) (map[string]any, string, error) {
+	link, err := parseProtocolLink(strings.TrimSpace(entry.Link), entry.Protocol)
+	if err != nil {
+		return nil, "", err
+	}
+	port, err := strconv.Atoi(link.Port())
+	if err != nil || !validPort(port) {
+		return nil, "", errors.New("meridian: invalid subscription port")
+	}
+	query := link.Query()
+	name := strings.TrimSpace(link.Fragment)
+	if name == "" {
+		return nil, "", errors.New("meridian: subscription name is required")
+	}
+	if entry.Protocol == Hysteria2 {
+		return map[string]any{
+			"name": name, "type": "hysteria2", "server": link.Hostname(), "port": port,
+			"password": link.User.Username(), "sni": query.Get("sni"), "alpn": []string{"h3"},
+			"skip-cert-verify": false, "udp": true,
+		}, name, nil
+	}
+	realityOptions := map[string]any{"public-key": query.Get("pbk"), "short-id": query.Get("sid")}
+	if spiderX := query.Get("spx"); spiderX != "" {
+		realityOptions["spider-x"] = spiderX
+	}
+	proxy := map[string]any{
+		"name": name, "type": "vless", "server": link.Hostname(), "port": port,
+		"uuid": link.User.Username(), "network": query.Get("type"), "tls": true,
+		"servername": query.Get("sni"), "flow": query.Get("flow"), "udp": true,
+		"reality-opts": realityOptions,
+	}
+	if fingerprint := query.Get("fp"); fingerprint != "" {
+		proxy["client-fingerprint"] = fingerprint
+	}
+	return proxy, name, nil
 }
 
 func composeLinks(native []byte, accountID string, mode PublishingMode, routes []PublishedRoute, encoded bool) ([]byte, error) {
@@ -135,7 +159,11 @@ func composeLinks(native []byte, accountID string, mode PublishingMode, routes [
 	identities := map[string]bool{}
 	for _, line := range lines {
 		if link, err := parseVLESSLink(strings.TrimSpace(line)); err == nil {
-			identities[link.User.Username()] = true
+			identities[string(VLESSReality)+"\x00"+link.User.Username()] = true
+			continue
+		}
+		if link, err := parseHysteria2Link(strings.TrimSpace(line)); err == nil {
+			identities[string(Hysteria2)+"\x00"+link.User.Username()] = true
 		}
 	}
 	for _, item := range routes {
@@ -149,20 +177,26 @@ func composeLinks(native []byte, accountID string, mode PublishingMode, routes [
 			return nil, err
 		}
 		base, err := parseVLESSLink(item.BaseLink)
-		if err != nil || !identities[base.User.Username()] || !slices.ContainsFunc(lines, func(line string) bool { return sameLinkIdentity(strings.TrimSpace(line), item.BaseLink) }) {
+		if err != nil {
+			return nil, errors.New("meridian: route does not belong to this subscription")
+		}
+		baseKey := string(VLESSReality) + "\x00" + base.User.Username()
+		if !identities[baseKey] || !slices.ContainsFunc(lines, func(line string) bool {
+			return sameProtocolLinkIdentity(strings.TrimSpace(line), item.BaseLink, VLESSReality)
+		}) {
 			return nil, errors.New("meridian: route does not belong to this subscription")
 		}
 		routed, err := parseVLESSLink(item.RouteLink)
-		if err != nil || routed.Host != base.Host || !sameRealityTransport(routed, base) || identities[routed.User.Username()] {
+		if err != nil || !sameProtocolTransport(routed, base, VLESSReality) || routed.User.Username() == base.User.Username() || identities[string(VLESSReality)+"\x00"+routed.User.Username()] {
 			return nil, errors.New("meridian: invalid routed credential")
 		}
-		routed.Fragment = routeName(item)
-		lines = append(lines, routed.String())
-		identities[routed.User.Username()] = true
+		routeLink, _, _ := strings.Cut(strings.TrimSpace(item.RouteLink), "#")
+		lines = append(lines, routeLink+"#"+escapeLinkFragment(routeName(item)))
+		identities[string(VLESSReality)+"\x00"+routed.User.Username()] = true
 	}
 	lines = slices.DeleteFunc(lines, func(line string) bool {
 		return slices.ContainsFunc(routes, func(item PublishedRoute) bool {
-			return item.Grant.Publishable() && item.Grant.HideNative && sameLinkIdentity(strings.TrimSpace(line), item.BaseLink)
+			return item.Grant.Publishable() && item.Grant.HideNative && sameProtocolLinkIdentity(strings.TrimSpace(line), item.BaseLink, VLESSReality)
 		})
 	})
 	result := []byte(strings.Join(lines, "\n") + "\n")
@@ -226,10 +260,11 @@ func composeMihomo(native []byte, accountID string, mode PublishingMode, routes 
 		if err != nil {
 			return nil, err
 		}
+		proxyType, credentialField := "vless", "uuid"
 		var proxy map[string]any
 		for _, value := range baseProxies {
 			candidate := value.(map[string]any)
-			if candidate["type"] == "vless" && candidate["uuid"] == base.User.Username() && candidate["server"] == base.Hostname() && fmt.Sprint(candidate["port"]) == base.Port() {
+			if candidate["type"] == proxyType && candidate[credentialField] == base.User.Username() && candidate["server"] == base.Hostname() && fmt.Sprint(candidate["port"]) == base.Port() {
 				if proxy != nil {
 					return nil, errors.New("meridian: ambiguous native entry identity")
 				}
@@ -240,11 +275,12 @@ func composeMihomo(native []byte, accountID string, mode PublishingMode, routes 
 			return nil, errors.New("meridian: native entry does not match this account")
 		}
 		routed, err := parseVLESSLink(item.RouteLink)
-		if err != nil || routed.Host != base.Host || !sameRealityTransport(routed, base) || routed.User.Username() == base.User.Username() {
+		if err != nil || !sameProtocolTransport(routed, base, VLESSReality) || routed.User.Username() == base.User.Username() {
 			return nil, errors.New("meridian: invalid routed subscription identity")
 		}
 		for _, value := range proxies {
-			if value.(map[string]any)["uuid"] == routed.User.Username() {
+			candidate := value.(map[string]any)
+			if candidate["type"] == proxyType && candidate[credentialField] == routed.User.Username() {
 				return nil, errors.New("meridian: duplicated routed subscription identity")
 			}
 		}
@@ -256,7 +292,7 @@ func composeMihomo(native []byte, accountID string, mode PublishingMode, routes 
 		for key, value := range proxy {
 			clone[key] = value
 		}
-		clone["name"], clone["uuid"], clone["udp"] = name, routed.User.Username(), false
+		clone["name"], clone[credentialField], clone["udp"] = name, routed.User.Username(), false
 		proxies = append(proxies, clone)
 		routeNames = append(routeNames, name)
 		if item.Grant.HideNative {
@@ -320,7 +356,7 @@ func composeMihomo(native []byte, accountID string, mode PublishingMode, routes 
 }
 
 func validatePublishedRouteScope(item PublishedRoute, accountID string) error {
-	if item.Grant.Validate() != nil || item.Grant.AccountID != accountID || !validDisplayName(item.EntryName) || item.EgressRegionCode != "" && !validRegionCode(item.EgressRegionCode) {
+	if item.Grant.Validate() != nil || item.Grant.AccountID != accountID || item.Protocol != VLESSReality || !ValidIdentity(item.BaseProtocolIdentity) || !ValidIdentity(item.RouteProtocolIdentity) || !validDisplayName(item.EntryName) || item.EgressRegionCode != "" && !validRegionCode(item.EgressRegionCode) {
 		return errors.New("meridian: published route scope does not match")
 	}
 	return nil
@@ -328,12 +364,15 @@ func validatePublishedRouteScope(item PublishedRoute, accountID string) error {
 
 func validatePublishedRouteLinks(item PublishedRoute) error {
 	base, err := parseVLESSLink(item.BaseLink)
-	if err != nil || Identity(base.User.Username()) != item.Grant.Base.Identity {
+	if err != nil || protocolLinkIdentity(base, VLESSReality) != item.BaseProtocolIdentity {
 		return errors.New("meridian: native credential changed")
 	}
 	routed, err := parseVLESSLink(item.RouteLink)
-	if err != nil || Identity(routed.User.Username()) != item.Grant.Route.Identity {
+	if err != nil || protocolLinkIdentity(routed, VLESSReality) != item.RouteProtocolIdentity {
 		return errors.New("meridian: routed credential changed")
+	}
+	if item.BaseProtocolIdentity != item.Grant.Base.Identity || item.RouteProtocolIdentity != item.Grant.Route.Identity {
+		return errors.New("meridian: VLESS route credential changed")
 	}
 	return nil
 }
