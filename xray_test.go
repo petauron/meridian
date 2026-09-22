@@ -176,7 +176,7 @@ func testHysteriaEndpoint(t *testing.T) HysteriaEndpoint {
 		t.Fatal(err)
 	}
 	now := time.Now().UTC()
-	der, err := x509.CreateCertificate(rand.Reader, &x509.Certificate{
+	template := &x509.Certificate{
 		SerialNumber: big.NewInt(1),
 		Subject:      pkix.Name{CommonName: "hy.example.com"},
 		DNSNames:     []string{"hy.example.com"},
@@ -184,7 +184,8 @@ func testHysteriaEndpoint(t *testing.T) HysteriaEndpoint {
 		NotAfter:     now.Add(24 * time.Hour),
 		KeyUsage:     x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-	}, nil, publicKey, privateKey)
+	}
+	der, err := x509.CreateCertificate(rand.Reader, template, template, publicKey, privateKey)
 	if err != nil {
 		t.Fatal(err)
 	}

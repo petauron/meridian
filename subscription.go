@@ -101,7 +101,7 @@ func nativeSubscriptionLines(entries []NativeEntry, accountID string) ([]byte, e
 			return nil, errors.New("meridian: ambiguous native subscription inventory")
 		}
 		seenNames[name], seenRoutes[routeKey], seenCredentials[credentialKey] = true, true, true
-		lines = append(lines, link.String())
+		lines = append(lines, strings.TrimSpace(entry.Link))
 	}
 	return []byte(strings.Join(lines, "\n") + "\n"), nil
 }
@@ -190,8 +190,8 @@ func composeLinks(native []byte, accountID string, mode PublishingMode, routes [
 		if err != nil || !sameProtocolTransport(routed, base, VLESSReality) || routed.User.Username() == base.User.Username() || identities[string(VLESSReality)+"\x00"+routed.User.Username()] {
 			return nil, errors.New("meridian: invalid routed credential")
 		}
-		routed.Fragment = routeName(item)
-		lines = append(lines, routed.String())
+		routeLink, _, _ := strings.Cut(strings.TrimSpace(item.RouteLink), "#")
+		lines = append(lines, routeLink+"#"+escapeLinkFragment(routeName(item)))
 		identities[string(VLESSReality)+"\x00"+routed.User.Username()] = true
 	}
 	lines = slices.DeleteFunc(lines, func(line string) bool {

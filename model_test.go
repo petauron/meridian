@@ -56,6 +56,7 @@ func TestPlanImportRejectsDuplicatedSubscriptionAuthority(t *testing.T) {
 	duplicate := item
 	duplicate.Account.ID = "account-b"
 	duplicate.Account.DisplayName = "Router"
+	duplicate.SubscriptionTokenFingerprint = SubscriptionTokenFingerprint("token-b")
 	duplicate.Credentials = []Credential{{ID: "native-b", AccountID: "account-b", Kind: NativeCredential, User: "Router", Identity: Identity(secret), EntryID: "entry-a", Enabled: true}}
 	duplicate.Usage = []UsageMember{{CredentialID: "native-b", Active: true}}
 	if _, err := PlanImport([]ImportAccount{item, duplicate}); err == nil || !strings.Contains(err.Error(), "credential") {
