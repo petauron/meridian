@@ -1,14 +1,18 @@
 package meridian
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"net"
 	"net/netip"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -21,8 +25,10 @@ const (
 )
 
 type CredentialMaterial struct {
-	Credential Credential `json:"credential"`
-	ProtocolID string     `json:"protocolId"`
+	Credential       Credential `json:"credential"`
+	ProtocolID       string     `json:"protocolId"`
+	HysteriaAuth     string     `json:"hysteriaAuth,omitempty"`
+	HysteriaIdentity string     `json:"hysteriaIdentity,omitempty"`
 }
 
 func (m CredentialMaterial) Validate() error {
@@ -31,6 +37,12 @@ func (m CredentialMaterial) Validate() error {
 	}
 	if _, err := uuid.Parse(m.ProtocolID); err != nil || Identity(m.ProtocolID) != m.Credential.Identity {
 		return errors.New("meridian: credential secret does not match its identity")
+	}
+	if (m.HysteriaAuth == "") != (m.HysteriaIdentity == "") || m.HysteriaAuth != "" && (len(m.HysteriaAuth) > 512 || Identity(m.HysteriaAuth) != m.HysteriaIdentity) {
+		return errors.New("meridian: Hysteria credential secret does not match its identity")
+	}
+	if m.Credential.Kind == RouteCredential && m.HysteriaAuth != "" {
+		return errors.New("meridian: routed credentials cannot use Hysteria")
 	}
 	return nil
 }
@@ -50,9 +62,59 @@ type RealityEndpoint struct {
 	Fingerprint   string   `json:"fingerprint"`
 }
 
+type HysteriaEndpoint struct {
+	ID             string `json:"id"`
+	EntryID        string `json:"entryId"`
+	InboundTag     string `json:"inboundTag"`
+	ListenPort     int    `json:"listenPort"`
+	AdvertiseHost  string `json:"advertiseHost"`
+	AdvertisePort  int    `json:"advertisePort"`
+	ServerName     string `json:"serverName"`
+	CertificatePEM string `json:"certificatePem"`
+	PrivateKeyPEM  string `json:"privateKeyPem"`
+}
+
+func (e HysteriaEndpoint) Validate() error {
+	if e.validateSubscription() != nil || !validInboundTag(e.InboundTag) || !validPort(e.ListenPort) || len(e.CertificatePEM) > 64<<10 || len(e.PrivateKeyPEM) > 64<<10 {
+		return errors.New("meridian: invalid Hysteria endpoint")
+	}
+	pair, err := tls.X509KeyPair([]byte(e.CertificatePEM), []byte(e.PrivateKeyPEM))
+	if err != nil || len(pair.Certificate) == 0 {
+		return errors.New("meridian: invalid Hysteria certificate")
+	}
+	leaf, err := x509.ParseCertificate(pair.Certificate[0])
+	if err != nil || leaf.VerifyHostname(e.ServerName) != nil {
+		return errors.New("meridian: Hysteria certificate does not cover its server name")
+	}
+	return nil
+}
+
+func (e HysteriaEndpoint) validateSubscription() error {
+	if !ValidIdentifier(e.ID) || !ValidIdentifier(e.EntryID) || !validPort(e.AdvertisePort) || !validShareHost(e.AdvertiseHost) || !validServerName(e.ServerName) {
+		return errors.New("meridian: invalid Hysteria subscription endpoint")
+	}
+	return nil
+}
+
+func HysteriaCertificateNotAfter(endpoint HysteriaEndpoint) (time.Time, error) {
+	if endpoint.Validate() != nil {
+		return time.Time{}, errors.New("meridian: invalid Hysteria endpoint")
+	}
+	pair, _ := tls.X509KeyPair([]byte(endpoint.CertificatePEM), []byte(endpoint.PrivateKeyPEM))
+	leaf, _ := x509.ParseCertificate(pair.Certificate[0])
+	return leaf.NotAfter.UTC(), nil
+}
+
 func (e RealityEndpoint) Validate() error {
-	if !ValidIdentifier(e.ID) || !ValidIdentifier(e.EntryID) || !validInboundTag(e.InboundTag) || !validPort(e.ListenPort) || !validPort(e.AdvertisePort) || !validShareHost(e.AdvertiseHost) || !validRealityTarget(e.Target) || strings.TrimSpace(e.PrivateKey) == "" || strings.TrimSpace(e.PublicKey) == "" || len(e.PrivateKey) > 256 || len(e.PublicKey) > 256 || len(e.ServerNames) == 0 || len(e.ServerNames) > 16 || len(e.ShortIDs) == 0 || len(e.ShortIDs) > 16 {
+	if e.validateSubscription() != nil || !validInboundTag(e.InboundTag) || !validPort(e.ListenPort) || !validRealityTarget(e.Target) || strings.TrimSpace(e.PrivateKey) == "" || len(e.PrivateKey) > 256 {
 		return errors.New("meridian: invalid REALITY endpoint")
+	}
+	return nil
+}
+
+func (e RealityEndpoint) validateSubscription() error {
+	if !ValidIdentifier(e.ID) || !ValidIdentifier(e.EntryID) || !validPort(e.AdvertisePort) || !validShareHost(e.AdvertiseHost) || strings.TrimSpace(e.PublicKey) == "" || len(e.PublicKey) > 256 || len(e.ServerNames) == 0 || len(e.ServerNames) > 16 || len(e.ShortIDs) == 0 || len(e.ShortIDs) > 16 {
+		return errors.New("meridian: invalid REALITY subscription endpoint")
 	}
 	seenNames, seenIDs := map[string]bool{}, map[string]bool{}
 	for _, name := range e.ServerNames {
@@ -88,11 +150,12 @@ func (p RoutePeer) Validate() error {
 }
 
 type XrayPlan struct {
-	Revision    uint64               `json:"revision"`
-	Endpoints   []RealityEndpoint    `json:"endpoints"`
-	Credentials []CredentialMaterial `json:"credentials"`
-	Grants      []RouteGrant         `json:"grants"`
-	Peers       []RoutePeer          `json:"peers"`
+	Revision          uint64               `json:"revision"`
+	RealityEndpoints  []RealityEndpoint    `json:"realityEndpoints,omitempty"`
+	HysteriaEndpoints []HysteriaEndpoint   `json:"hysteriaEndpoints,omitempty"`
+	Credentials       []CredentialMaterial `json:"credentials"`
+	Grants            []RouteGrant         `json:"grants"`
+	Peers             []RoutePeer          `json:"peers"`
 }
 
 func RenderXrayConfiguration(plan XrayPlan) ([]byte, error) {
@@ -103,7 +166,7 @@ func RenderXrayConfiguration(plan XrayPlan) ([]byte, error) {
 	inbounds := []any{
 		map[string]any{"listen": "127.0.0.1", "port": XrayAPIListenPort, "protocol": "dokodemo-door", "settings": map[string]any{"address": "127.0.0.1"}, "tag": "api"},
 	}
-	for _, endpoint := range projection.endpoints {
+	for _, endpoint := range projection.realityEndpoints {
 		clients := make([]any, 0, len(projection.credentials[endpoint.EntryID]))
 		for _, material := range projection.credentials[endpoint.EntryID] {
 			clients = append(clients, map[string]any{
@@ -120,15 +183,50 @@ func RenderXrayConfiguration(plan XrayPlan) ([]byte, error) {
 			"tag":      endpoint.InboundTag,
 			"settings": map[string]any{"clients": clients, "decryption": "none"},
 			"streamSettings": map[string]any{
-				"network":     "tcp",
-				"tcpSettings": map[string]any{"acceptProxyProtocol": true, "header": map[string]any{"type": "none"}},
-				"sockopt":     map[string]any{"acceptProxyProtocol": true},
+				"method":      "raw",
+				"rawSettings": map[string]any{"acceptProxyProtocol": true, "header": map[string]any{"type": "none"}},
 				"security":    "reality",
 				"realitySettings": map[string]any{
 					"show": false, "xver": 0, "target": endpoint.Target,
 					"serverNames": slices.Clone(endpoint.ServerNames), "privateKey": endpoint.PrivateKey,
 					"minClientVer": XrayMinimumClient, "maxClientVer": "", "maxTimediff": 0,
 					"shortIds": slices.Clone(endpoint.ShortIDs),
+				},
+			},
+		})
+	}
+	for _, endpoint := range projection.hysteriaEndpoints {
+		users := make([]any, 0, len(projection.credentials[endpoint.EntryID]))
+		for _, material := range projection.credentials[endpoint.EntryID] {
+			if material.Credential.Kind != NativeCredential {
+				continue
+			}
+			users = append(users, map[string]any{
+				"email": material.Credential.User,
+				"auth":  material.HysteriaAuth,
+				"level": 0,
+			})
+		}
+		inbounds = append(inbounds, map[string]any{
+			"listen":   "0.0.0.0",
+			"port":     endpoint.ListenPort,
+			"protocol": "hysteria",
+			"tag":      endpoint.InboundTag,
+			"settings": map[string]any{"version": 2, "users": users},
+			"streamSettings": map[string]any{
+				"method":   "hysteria",
+				"security": "tls",
+				"hysteriaSettings": map[string]any{
+					"version": 2, "udpIdleTimeout": 60,
+					"masquerade": map[string]any{"type": ""},
+				},
+				"tlsSettings": map[string]any{
+					"serverName": endpoint.ServerName, "alpn": []string{"h3"}, "minVersion": "1.3",
+					"certificates": []any{map[string]any{
+						"certificate": strings.Split(strings.TrimSpace(endpoint.CertificatePEM), "\n"),
+						"key":         strings.Split(strings.TrimSpace(endpoint.PrivateKeyPEM), "\n"),
+						"usage":       "encipherment",
+					}},
 				},
 			},
 		})
@@ -173,7 +271,7 @@ func RenderXrayConfiguration(plan XrayPlan) ([]byte, error) {
 }
 
 func LinkForCredential(endpoint RealityEndpoint, material CredentialMaterial, name string) (string, error) {
-	if endpoint.Validate() != nil || material.Validate() != nil || material.Credential.EntryID != endpoint.EntryID || !validDisplayName(name) {
+	if endpoint.validateSubscription() != nil || material.Validate() != nil || material.Credential.EntryID != endpoint.EntryID || !validDisplayName(name) {
 		return "", errors.New("meridian: invalid subscription link input")
 	}
 	fingerprint := endpoint.Fingerprint
@@ -194,26 +292,57 @@ func LinkForCredential(endpoint RealityEndpoint, material CredentialMaterial, na
 	return "vless://" + material.ProtocolID + "@" + net.JoinHostPort(endpoint.AdvertiseHost, strconv.Itoa(endpoint.AdvertisePort)) + "?" + strings.Join(query, "&") + "#" + escapeLinkFragment(name), nil
 }
 
+func Hysteria2LinkForCredential(endpoint HysteriaEndpoint, material CredentialMaterial, name string) (string, error) {
+	if endpoint.validateSubscription() != nil || material.Validate() != nil || material.Credential.EntryID != endpoint.EntryID || material.HysteriaAuth == "" || !validDisplayName(name) {
+		return "", errors.New("meridian: invalid Hysteria subscription link input")
+	}
+	link := url.URL{
+		Scheme:   "hysteria2",
+		User:     url.User(material.HysteriaAuth),
+		Host:     net.JoinHostPort(endpoint.AdvertiseHost, strconv.Itoa(endpoint.AdvertisePort)),
+		Fragment: name,
+	}
+	link.RawQuery = url.Values{"sni": {endpoint.ServerName}, "alpn": {"h3"}}.Encode()
+	return link.String(), nil
+}
+
 type xrayProjection struct {
-	endpoints   []RealityEndpoint
-	credentials map[string][]CredentialMaterial
-	grants      []RouteGrant
-	peers       map[string]RoutePeer
+	realityEndpoints  []RealityEndpoint
+	hysteriaEndpoints []HysteriaEndpoint
+	credentials       map[string][]CredentialMaterial
+	grants            []RouteGrant
+	peers             map[string]RoutePeer
 }
 
 func prepareXrayProjection(plan XrayPlan) (xrayProjection, error) {
-	if plan.Revision == 0 || len(plan.Endpoints) == 0 || len(plan.Endpoints) > 128 || len(plan.Credentials) == 0 || len(plan.Credentials) > 65536 || len(plan.Grants) > 65536 || len(plan.Peers) > 1024 {
+	if plan.Revision == 0 || len(plan.RealityEndpoints)+len(plan.HysteriaEndpoints) == 0 || len(plan.RealityEndpoints)+len(plan.HysteriaEndpoints) > 256 || len(plan.Credentials) > 65536 || len(plan.Grants) > 65536 || len(plan.Peers) > 1024 {
 		return xrayProjection{}, errors.New("meridian: invalid Xray plan")
 	}
 	projection := xrayProjection{credentials: map[string][]CredentialMaterial{}, peers: map[string]RoutePeer{}}
-	entryTags, ports := map[string]string{}, map[int]bool{}
-	projection.endpoints = slices.Clone(plan.Endpoints)
-	slices.SortFunc(projection.endpoints, func(a, b RealityEndpoint) int { return strings.Compare(a.EntryID, b.EntryID) })
-	for _, endpoint := range projection.endpoints {
-		if endpoint.Validate() != nil || entryTags[endpoint.EntryID] != "" || ports[endpoint.ListenPort] || endpoint.ListenPort == XrayAPIListenPort {
+	entryTags, routeTags, tags, ports := map[string][]string{}, map[string]string{}, map[string]bool{}, map[string]bool{}
+	projection.realityEndpoints = slices.Clone(plan.RealityEndpoints)
+	slices.SortFunc(projection.realityEndpoints, func(a, b RealityEndpoint) int { return strings.Compare(a.EntryID, b.EntryID) })
+	for _, endpoint := range projection.realityEndpoints {
+		portKey := "tcp/" + strconv.Itoa(endpoint.ListenPort)
+		if endpoint.Validate() != nil || tags[endpoint.InboundTag] || ports[portKey] || endpoint.ListenPort == XrayAPIListenPort {
 			return xrayProjection{}, errors.New("meridian: conflicting Xray endpoint")
 		}
-		entryTags[endpoint.EntryID], ports[endpoint.ListenPort] = endpoint.InboundTag, true
+		entryTags[endpoint.EntryID] = append(entryTags[endpoint.EntryID], endpoint.InboundTag)
+		if routeTags[endpoint.EntryID] != "" {
+			return xrayProjection{}, errors.New("meridian: multiple routable inbounds share one entry")
+		}
+		routeTags[endpoint.EntryID] = endpoint.InboundTag
+		tags[endpoint.InboundTag], ports[portKey] = true, true
+	}
+	projection.hysteriaEndpoints = slices.Clone(plan.HysteriaEndpoints)
+	slices.SortFunc(projection.hysteriaEndpoints, func(a, b HysteriaEndpoint) int { return strings.Compare(a.EntryID, b.EntryID) })
+	for _, endpoint := range projection.hysteriaEndpoints {
+		portKey := "udp/" + strconv.Itoa(endpoint.ListenPort)
+		if endpoint.Validate() != nil || tags[endpoint.InboundTag] || ports[portKey] || endpoint.ListenPort == XrayAPIListenPort {
+			return xrayProjection{}, errors.New("meridian: conflicting Xray endpoint")
+		}
+		entryTags[endpoint.EntryID] = append(entryTags[endpoint.EntryID], endpoint.InboundTag)
+		tags[endpoint.InboundTag], ports[portKey] = true, true
 	}
 	for _, peer := range plan.Peers {
 		if peer.Validate() != nil || projection.peers[peer.EgressID].EgressID != "" {
@@ -222,14 +351,20 @@ func prepareXrayProjection(plan XrayPlan) (xrayProjection, error) {
 		projection.peers[peer.EgressID] = peer
 	}
 	materialByID := map[string]CredentialMaterial{}
-	users, identities := map[string]bool{}, map[string]bool{}
+	users, identities, hysteriaIdentities := map[string]bool{}, map[string]bool{}, map[string]bool{}
 	for _, material := range plan.Credentials {
 		credential := material.Credential
-		if material.Validate() != nil || entryTags[credential.EntryID] == "" || materialByID[credential.ID].Credential.ID != "" || users[credential.User] || identities[credential.Identity] {
+		if material.Validate() != nil || len(entryTags[credential.EntryID]) == 0 || materialByID[credential.ID].Credential.ID != "" || users[credential.User] || identities[credential.Identity] || material.HysteriaIdentity != "" && hysteriaIdentities[material.HysteriaIdentity] {
 			return xrayProjection{}, errors.New("meridian: conflicting Xray credential")
 		}
 		materialByID[credential.ID], users[credential.User], identities[credential.Identity] = material, true, true
+		if material.HysteriaIdentity != "" {
+			hysteriaIdentities[material.HysteriaIdentity] = true
+		}
 		if credential.Enabled {
+			if credential.Kind == NativeCredential && slices.ContainsFunc(projection.hysteriaEndpoints, func(endpoint HysteriaEndpoint) bool { return endpoint.EntryID == credential.EntryID }) && material.HysteriaAuth == "" {
+				return xrayProjection{}, errors.New("meridian: Hysteria endpoint credential is incomplete")
+			}
 			projection.credentials[credential.EntryID] = append(projection.credentials[credential.EntryID], material)
 		}
 	}
@@ -243,7 +378,7 @@ func prepareXrayProjection(plan XrayPlan) (xrayProjection, error) {
 		base, hasBase := materialByID[grant.Base.ID]
 		route, hasRoute := materialByID[grant.Route.ID]
 		peer, hasPeer := projection.peers[grant.EgressID]
-		if !grant.Deployable() || seenGrants[grant.ID] || !hasBase || !hasRoute || base.Credential != grant.Base || route.Credential != grant.Route || usedRoutes[grant.Route.ID] || !hasPeer || peer.EgressID != grant.EgressID || entryTags[grant.EntryID] != grant.InboundTag {
+		if !grant.Deployable() || seenGrants[grant.ID] || !hasBase || !hasRoute || base.Credential != grant.Base || route.Credential != grant.Route || usedRoutes[grant.Route.ID] || !hasPeer || peer.EgressID != grant.EgressID || routeTags[grant.EntryID] != grant.InboundTag {
 			return xrayProjection{}, errors.New("meridian: conflicting Xray route grant")
 		}
 		seenGrants[grant.ID], usedRoutes[grant.Route.ID] = true, true

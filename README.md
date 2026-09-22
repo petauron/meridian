@@ -24,29 +24,46 @@ There is one writer for each credential. A migration may import an existing
 3x-ui identity once, but released runtime code must not retain dual reads,
 dual writes, aliases, or a 3x-ui fallback after cutover.
 
-## Initial scope
+## Protocol scope
 
-The first vertical slice supports managed VLESS/REALITY entries, fixed
-entry-to-egress route credentials, conventional base64 subscriptions, Mihomo
-YAML, and one shared account quota across all credentials. The APIs are pure
-and deterministic so callers can persist state in their own forward-only
-schema and compare desired output before applying a runtime revision.
+The first complete vertical slice supports managed VLESS/REALITY and native
+Hysteria2/TLS entries, VLESS fixed entry-to-egress route credentials,
+conventional base64 subscriptions, Mihomo YAML, and one shared account quota
+across both protocols and all route credentials. A native Meridian credential
+owns a VLESS UUID and, when Hysteria2 is enabled for the entry, a separate
+Hysteria2 authentication secret. Both runtime clients use the same Xray user
+label, so their counters contribute to the same account ledger instead of
+creating a second account or quota. Routed credentials remain VLESS-only:
+current Xray Hysteria inbounds do not provide a trustworthy per-user routing
+boundary, so Meridian never publishes a routed Hysteria credential that could
+silently escape through the native exit.
+
+The APIs are pure and deterministic so callers can persist state in their own
+forward-only schema and compare desired output before applying a runtime
+revision.
 
 ## Security model
 
 Persisted domain records refer to credential fingerprints and caller-owned
-encrypted secrets. Xray rendering necessarily receives the decrypted UUID and
-REALITY private key for the duration of one in-process projection; these
-secret-bearing values must stay in encrypted task/state envelopes and are
-never included in errors, receipts, or event text. Raw VLESS links are accepted
-only as bounded renderer input and are never suitable for logs. Subscription
-rendering rejects cross-account routes, duplicate identities, ambiguous names,
-unsupported transports, and mismatched REALITY material.
+encrypted secrets. Xray rendering necessarily receives decrypted protocol
+credentials, the REALITY private key, and the Hysteria2 TLS key for the
+duration of one in-process projection; these secret-bearing values must stay
+in encrypted task/state envelopes and are never included in errors, receipts,
+or event text. Raw subscription links are accepted only as bounded renderer
+input and are never suitable for logs. Subscription rendering rejects
+cross-account routes, duplicate identities, ambiguous names, unsupported
+transports, and mismatched protocol material.
 
 ## Core API
 
 - `PlanImport` validates and fingerprints a complete one-time authority
-  transfer before callers mutate durable state.
+  transfer before callers mutate durable state. A legacy VLESS identity may
+  be preserved across different entries, while duplicate VLESS identities
+  within one entry remain invalid. Hysteria2 authentication identities follow
+  the same boundary: they must be unique inside one entry runtime, while a
+  migrated account may preserve the same authentication secret on independent
+  entries. An empty account inventory is valid when an installation has entry
+  runtimes but no subscribers yet.
 - `ProjectQuota` applies one shared account allowance across native and routed
   credentials without splitting or duplicating the allowance.
 - `RenderLinks` and `RenderMihomo` produce deterministic subscriptions from
@@ -58,8 +75,16 @@ unsupported transports, and mismatched REALITY material.
 - `ParseXrayUserCounters` maps exact Xray user counters back to credential IDs
   without relying on delimiter splitting.
 
+Vastora's migration adapter rejects legacy per-entry traffic ceilings and
+per-client simultaneous-IP limits before import. Those policies do not have an
+equivalent in Meridian's account-wide quota model and current Xray runtime, so
+they must never be silently weakened during replacement.
+
 ## Status
 
-The domain module is being integrated into Vastora as the replacement for the
-remaining 3x-ui controller adapter. It is not yet a released standalone
-service.
+This public module is the reusable Meridian domain authority. Vastora is its
+first control-plane integration and owns persistence, operator APIs, UI, and
+Agent orchestration; no separate mutable panel or node-side service is part of
+the architecture. The first release remains in pre-release integration until
+the forward cutover and runtime receipts have been verified on the managed
+fleet.
