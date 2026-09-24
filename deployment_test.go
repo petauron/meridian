@@ -45,6 +45,25 @@ func TestParseXrayUserCountersRejectsNegativeValues(t *testing.T) {
 	}
 }
 
+func TestParseXrayUserCountersAcceptsOmittedZeroValues(t *testing.T) {
+	identifier := "00000000-0000-4000-8000-000000000001"
+	credential := Credential{ID: "native", AccountID: "account", Kind: NativeCredential, User: "phone", Identity: Identity(identifier), EntryID: "entry", Enabled: true}
+	snapshots, err := ParseXrayUserCounters(
+		[]CredentialMaterial{{Credential: credential, ProtocolID: identifier}},
+		[]byte(`{"stat":[{"name":"user>>>phone>>>traffic>>>uplink"},{"name":"user>>>phone>>>traffic>>>downlink","value":"15"}]}`),
+	)
+	if err != nil || len(snapshots) != 1 || snapshots[0].UpBytes != 0 || snapshots[0].DownBytes != 15 {
+		t.Fatalf("snapshots=%#v err=%v", snapshots, err)
+	}
+}
+
+func TestParseXrayUserCountersRejectsNullValues(t *testing.T) {
+	_, err := ParseXrayUserCounters(nil, []byte(`{"stat":[{"name":"user>>>phone>>>traffic>>>uplink","value":null}]}`))
+	if err == nil || !strings.Contains(err.Error(), "counter") {
+		t.Fatalf("null counter error=%v", err)
+	}
+}
+
 func TestParseXrayUserCountersAcceptsEmptyCredentialInventory(t *testing.T) {
 	snapshots, err := ParseXrayUserCounters(nil, []byte(`{"stat":[]}`))
 	if err != nil {

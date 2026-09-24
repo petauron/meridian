@@ -119,7 +119,8 @@ func ParseXrayUserCounters(materials []CredentialMaterial, payload []byte) ([]Co
 
 func parseCounter(raw json.RawMessage) (int64, error) {
 	if len(raw) == 0 {
-		return 0, errors.New("meridian: missing Xray traffic counter")
+		// Xray's protobuf JSON omits the value field for a zero counter.
+		return 0, nil
 	}
 	var number json.Number
 	decoder := json.NewDecoder(bytes.NewReader(raw))
