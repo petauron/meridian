@@ -182,6 +182,9 @@ func RenderXrayConfiguration(plan XrayPlan) ([]byte, error) {
 			"protocol": "vless",
 			"tag":      endpoint.InboundTag,
 			"settings": map[string]any{"clients": clients, "decryption": "none"},
+			// Restore HTTP/TLS hostnames when a client sends a resolved IP, so
+			// the final SOCKS egress can resolve the destination in its own family.
+			"sniffing": map[string]any{"enabled": true, "destOverride": []string{"http", "tls"}, "routeOnly": false},
 			"streamSettings": map[string]any{
 				"method":      "raw",
 				"rawSettings": map[string]any{"acceptProxyProtocol": true, "header": map[string]any{"type": "none"}},

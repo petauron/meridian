@@ -40,6 +40,14 @@ func TestRenderXrayConfigurationProjectsNativeAndFixedCredentials(t *testing.T) 
 		t.Fatalf("unexpected Xray projection: %s", encoded)
 	}
 	stream := config.Inbounds[1]["streamSettings"].(map[string]any)
+	sniffing, ok := config.Inbounds[1]["sniffing"].(map[string]any)
+	if !ok || sniffing["enabled"] != true || sniffing["routeOnly"] != false {
+		t.Fatal("resolved client IPs must be replaced by sniffed domains before forwarding to the fixed egress")
+	}
+	protocols, _ := json.Marshal(sniffing["destOverride"])
+	if string(protocols) != `["http","tls"]` || config.Inbounds[0]["sniffing"] != nil {
+		t.Fatal("domain recovery must cover HTTP/TLS without changing the management inbound")
+	}
 	raw, ok := stream["rawSettings"].(map[string]any)
 	if config.Inbounds[1]["listen"] != "0.0.0.0" || stream["security"] != "reality" || stream["method"] != "raw" || !ok || raw["acceptProxyProtocol"] != true || stream["network"] != nil || stream["tcpSettings"] != nil || stream["sockopt"] != nil {
 		t.Fatalf("REALITY bridge contract missing: %#v", config.Inbounds[1])
