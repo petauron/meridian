@@ -57,53 +57,6 @@
     --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Meridian inherits Center theme tokens and base styles. */
-
-.quality-type-residential { color: var(--quality-excellent); background: color-mix(in srgb, var(--quality-excellent) 12%, transparent); border-color: color-mix(in srgb, var(--quality-excellent) 35%, transparent); font-weight: 600; }
-
-.quality-grade { color: var(--muted-foreground); }
-.quality-grade-excellent { color: var(--quality-excellent); }
-.quality-grade-premium { color: var(--quality-premium); }
-.quality-grade-good { color: var(--quality-good); }
-.quality-grade-fair { color: var(--quality-fair); }
-.quality-grade-poor { color: var(--destructive); }
-
-/* Application-specific typography and layout inherit the shared theme colors. */
-.apps-workspace {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Segoe UI", sans-serif;
-  color: var(--foreground);
-}
-
-.apps-workspace :is(h1, h2, h3, [data-slot="sheet-title"]) { font-family: inherit; }
-.apps-workspace [data-slot="tabs-trigger"] { padding-inline: 12px; }
-.apps-chooser [data-slot="tabs-list"] { height: auto; min-height: 40px; justify-content: flex-start; }
-.apps-chooser [data-slot="tabs-trigger"] { min-height: 34px; flex: none; }
-.apps-status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-.apps-instance-table th { font-size: 12px; font-weight: 500; color: var(--muted-foreground); }
-.apps-instance-table td { font-size: 13px; }
-.quality-list-trigger .quality-grade { border: 0; background: transparent; padding: 0; min-width: 24px; font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.quality-list-trigger .quality-grade-unknown { font-size: 11px; font-weight: 400; }
-.apps-three-xui-toolbar { border-bottom: 1px solid var(--border); }
-.apps-exit-sheet[data-side="right"] { width: 100%; max-width: 440px; }
-.apps-exit-sheet [data-slot="sheet-footer"] { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
-
-@media (min-width: 1024px) {
-  .apps-instance-table td { padding-block: 10px; }
-  .apps-three-xui .apps-instance-table td { height: 48px; padding-block: 6px; }
-  .apps-three-xui .apps-instance-table :is(th, td):first-child { padding-left: 0; }
-  .apps-three-xui .apps-instance-table :is(th, td):last-child { padding-right: 0; }
-}
-@media (pointer: coarse) {
-  .apps-workspace [data-slot="tabs-trigger"] { min-height: 44px; }
-  .apps-workspace [data-slot="tabs-list"] { height: auto; }
-  .apps-workspace [data-slot="input-group"] { height: auto; min-height: 44px; }
-  .apps-workspace [data-slot="input-group-control"] { min-height: 44px; }
-}
-
-/* Keep route comparisons out of the node summary rows. */
-.meridian-network-matrix th { font-size: 12px; font-weight: 500; }
-.meridian-network-matrix td { height: 56px; padding: 8px 12px; font-size: 12px; }
-.apps-three-xui .quality-list-trigger { min-height: 32px; }
-@media (min-width: 1024px) {
-  .apps-three-xui .apps-instance-table tr:not([data-application-id]):not([data-landing-node-id]) td { height: 30px; }
-}
+/* Center owns shared components and theme tokens; Meridian owns its layout. */
+[data-app-workspace="vastora-official/meridian"] .meridian-network-matrix th { font-size: 12px; font-weight: 500; }
+[data-app-workspace="vastora-official/meridian"] .meridian-network-matrix td { height: 56px; padding: 8px 12px; font-size: 12px; }
