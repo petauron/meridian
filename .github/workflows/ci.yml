@@ -31,3 +31,47 @@ jobs:
         run: go vet ./...
       - name: Test with race detection
         run: go test -race ./... -count=1
+  ui:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: petauron/vastora
+          ref: 270e92cc90a4d095dd4db245ec9e83bd7101688a
+          path: vastora
+          persist-credentials: false
+      - uses: actions/setup-node@cd2651e908eacd67010c76a1e0d891d1e5f313da # v4.4.0
+        with:
+          node-version: '24.19.0'
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - name: Install reviewed UI dependencies
+        run: |
+          npm ci --prefix vastora/web
+          npm ci --prefix ui
+      - name: Verify app interface
+        env:
+          VASTORA_WEB_SOURCE: ${{ github.workspace }}/vastora/web/src
+        run: |
+          npm run check --prefix ui
+          npm test --prefix ui
+      - name: Build independently delivered UI
+        env:
+          VASTORA_WEB_SOURCE: ${{ github.workspace }}/vastora/web/src
+        run: |
+          npm run build --prefix ui
+          test -s ui/dist/ui-meridian-0.1.0-alpha.2.js
+          test -s ui/dist/ui-meridian-0.1.0-alpha.2.css
+          test "$(wc -c < ui/dist/ui-meridian-0.1.0-alpha.2.js)" -le 4194304
+          test "$(wc -c < ui/dist/ui-meridian-0.1.0-alpha.2.css)" -le 4194304
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: meridian-ui-0.1.0-alpha.2
+          path: |
+            ui/dist/ui-meridian-0.1.0-alpha.2.js
+            ui/dist/ui-meridian-0.1.0-alpha.2.css
+          if-no-files-found: error
