@@ -7,8 +7,9 @@ import { reviewedCenterSource } from "./platform-source.mjs";
 
 reviewedCenterSource();
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [tailwindcss(), react()],
+  define: command === "build" ? { "process.env.NODE_ENV": JSON.stringify("production") } : undefined,
   resolve: {
     alias: { "@": fileURLToPath(new URL("./.center-src", import.meta.url)) },
     dedupe: ["react", "react-dom"],
@@ -24,4 +25,4 @@ export default defineConfig({
     },
     rollupOptions: { output: { inlineDynamicImports: true } },
   },
-});
+}));
