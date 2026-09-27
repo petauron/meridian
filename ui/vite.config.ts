@@ -1,18 +1,20 @@
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { fileURLToPath } from "node:url";
 import manifest from "./package.json" with { type: "json" };
 import { reviewedCenterSource } from "./platform-source.mjs";
 
-const centerSource = reviewedCenterSource();
+reviewedCenterSource();
 
 export default defineConfig({
   plugins: [tailwindcss(), react()],
   resolve: {
-    alias: { "@": centerSource },
+    alias: { "@": fileURLToPath(new URL("./.center-src", import.meta.url)) },
     dedupe: ["react", "react-dom"],
+    preserveSymlinks: true,
   },
+  test: { include: ["src/**/*.test.{ts,tsx}"] },
   build: {
     lib: {
       entry: fileURLToPath(new URL("./src/index.tsx", import.meta.url)),
