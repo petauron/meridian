@@ -99,6 +99,3 @@
         padding-right: 16px;
     }
 }
-
-[data-app-workspace="vastora-official/meridian"] .meridian-network-matrix th { font-size: 12px; font-weight: 500; }
-[data-app-workspace="vastora-official/meridian"] .meridian-network-matrix td { height: 56px; padding: 8px 12px; font-size: 12px; }
