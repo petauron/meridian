@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 
-export const pinnedCenterCommit = "270e92cc90a4d095dd4db245ec9e83bd7101688a";
+export const pinnedCenterCommit = "b9be0751da059f865fc1f01ab85395cc8cf6dfe7";
 
 export function reviewedCenterSource() {
   const source = process.env.VASTORA_WEB_SOURCE;
