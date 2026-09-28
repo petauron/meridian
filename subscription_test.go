@@ -6,10 +6,10 @@ import (
 	"testing"
 )
 
-func TestRenderLinksPublishesHealthyRouteWithoutLetterSuffix(t *testing.T) {
+func TestRenderLinksReplacesEntryRegionWithLandingRegion(t *testing.T) {
 	baseSecret := "11111111-1111-4111-8111-111111111111"
 	routeSecret := "22222222-2222-4222-8222-222222222222"
-	baseLink := "vless://" + baseSecret + "@entry.example.com:443?security=reality&type=tcp&sni=www.example.com&pbk=public&sid=abcd&fp=chrome&flow=xtls-rprx-vision#🇺🇸｜Entry-Alpha"
+	baseLink := "vless://" + baseSecret + "@entry.example.com:443?security=reality&type=tcp&sni=www.example.com&pbk=public&sid=abcd&fp=chrome&flow=xtls-rprx-vision#🇺🇸 美国｜Entry-Alpha"
 	routeLink := "vless://" + routeSecret + "@entry.example.com:443?security=reality&type=tcp&sni=www.example.com&pbk=public&sid=abcd&fp=chrome&flow=xtls-rprx-vision#ignored"
 	grant := RouteGrant{
 		ID: "grant-a", AccountID: "account-a", EntryID: "entry-a", EgressID: "egress-a", InboundTag: "vless-a",
@@ -19,7 +19,7 @@ func TestRenderLinksPublishesHealthyRouteWithoutLetterSuffix(t *testing.T) {
 	}
 	baseMaterial := CredentialMaterial{Credential: grant.Base, ProtocolID: baseSecret}
 	entries := []NativeEntry{{Material: baseMaterial, Protocol: VLESSReality, Link: baseLink}}
-	result, err := RenderLinks(entries, "account-a", FixedMode, []PublishedRoute{{Grant: grant, Protocol: VLESSReality, EntryName: "｜Entry-Alpha", EgressRegionCode: "TW", BaseLink: baseLink, RouteLink: routeLink, BaseProtocolIdentity: grant.Base.Identity, RouteProtocolIdentity: grant.Route.Identity}}, true)
+	result, err := RenderLinks(entries, "account-a", FixedMode, []PublishedRoute{{Grant: grant, Protocol: VLESSReality, EntryName: "🇺🇸 美国｜Entry-Alpha", EgressRegionPrefix: "🇹🇼 台湾", BaseLink: baseLink, RouteLink: routeLink, BaseProtocolIdentity: grant.Base.Identity, RouteProtocolIdentity: grant.Route.Identity}}, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -32,8 +32,11 @@ func TestRenderLinksPublishesHealthyRouteWithoutLetterSuffix(t *testing.T) {
 	if len(lines) != 2 {
 		t.Fatalf("rendered subscription = %q", text)
 	}
+	if native, err := parseVLESSLink(lines[0]); err != nil || native.Fragment != "🇺🇸 美国｜Entry-Alpha" {
+		t.Fatalf("native subscription changed: %q", text)
+	}
 	routed, err := parseVLESSLink(lines[1])
-	if err != nil || routed.Fragment != "🔀 🇹🇼｜Entry-Alpha" || strings.Contains(routed.Fragment, "Entry-Alpha A") || strings.Contains(routed.Fragment, "｜｜") {
+	if err != nil || routed.Fragment != "🇹🇼 台湾L｜Entry-Alpha" || strings.Contains(routed.Fragment, "🇺🇸") || strings.Contains(routed.Fragment, "｜｜") {
 		t.Fatalf("rendered subscription = %q", text)
 	}
 }
@@ -77,7 +80,7 @@ func TestRenderSubscriptionsRejectRoutedHysteria(t *testing.T) {
 		t.Fatal(err)
 	}
 	grant := RouteGrant{ID: "grant-a", AccountID: "account-a", EntryID: "entry", EgressID: "egress-a", InboundTag: "meridian-entry", Base: base, Route: route, Mode: FixedMode, Enabled: true, DesiredRev: 2, AppliedRev: 2, RuntimeGood: true}
-	routes := []PublishedRoute{{Grant: grant, Protocol: Hysteria2, EntryName: "｜Entry", EgressRegionCode: "TW", BaseLink: baseLink, RouteLink: baseLink, BaseProtocolIdentity: baseMaterial.HysteriaIdentity, RouteProtocolIdentity: baseMaterial.HysteriaIdentity}}
+	routes := []PublishedRoute{{Grant: grant, Protocol: Hysteria2, EntryName: "｜Entry", EgressRegionPrefix: "🇹🇼 台湾", BaseLink: baseLink, RouteLink: baseLink, BaseProtocolIdentity: baseMaterial.HysteriaIdentity, RouteProtocolIdentity: baseMaterial.HysteriaIdentity}}
 	entries := []NativeEntry{{Material: baseMaterial, Protocol: Hysteria2, Link: baseLink}}
 	if _, err := RenderLinks(entries, "account-a", FixedMode, routes, false); err == nil {
 		t.Fatal("routed Hysteria link subscription was accepted")

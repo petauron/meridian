@@ -17,7 +17,7 @@ type PublishedRoute struct {
 	Grant                 RouteGrant   `json:"grant"`
 	Protocol              ProtocolKind `json:"protocol"`
 	EntryName             string       `json:"entryName"`
-	EgressRegionCode      string       `json:"egressRegionCode,omitempty"`
+	EgressRegionPrefix    string       `json:"egressRegionPrefix,omitempty"`
 	BaseLink              string       `json:"baseLink"`
 	RouteLink             string       `json:"routeLink"`
 	BaseProtocolIdentity  string       `json:"baseProtocolIdentity"`
@@ -356,7 +356,7 @@ func composeMihomo(native []byte, accountID string, mode PublishingMode, routes 
 }
 
 func validatePublishedRouteScope(item PublishedRoute, accountID string) error {
-	if item.Grant.Validate() != nil || item.Grant.AccountID != accountID || item.Protocol != VLESSReality || !ValidIdentity(item.BaseProtocolIdentity) || !ValidIdentity(item.RouteProtocolIdentity) || !validDisplayName(item.EntryName) || item.EgressRegionCode != "" && !validRegionCode(item.EgressRegionCode) {
+	if item.Grant.Validate() != nil || item.Grant.AccountID != accountID || item.Protocol != VLESSReality || !ValidIdentity(item.BaseProtocolIdentity) || !ValidIdentity(item.RouteProtocolIdentity) || !validDisplayName(item.EntryName) || item.EgressRegionPrefix != "" && (!validDisplayName(item.EgressRegionPrefix) || strings.ContainsAny(item.EgressRegionPrefix, "|｜")) {
 		return errors.New("meridian: published route scope does not match")
 	}
 	return nil
@@ -379,18 +379,13 @@ func validatePublishedRouteLinks(item PublishedRoute) error {
 
 func routeName(item PublishedRoute) string {
 	entry := strings.TrimSpace(item.EntryName)
-	entry = strings.TrimLeft(entry, "｜| ")
-	prefix := "🔀｜"
-	if item.EgressRegionCode != "" {
-		prefix = "🔀 " + regionFlag(item.EgressRegionCode) + "｜"
+	if _, name, ok := strings.Cut(entry, "｜"); ok && strings.TrimSpace(name) != "" {
+		entry = name
 	}
-	return prefix + entry
-}
-
-func validRegionCode(code string) bool {
-	return len(code) == 2 && code[0] >= 'A' && code[0] <= 'Z' && code[1] >= 'A' && code[1] <= 'Z'
-}
-
-func regionFlag(code string) string {
-	return string([]rune{rune(code[0]-'A') + 0x1F1E6, rune(code[1]-'A') + 0x1F1E6})
+	entry = strings.TrimLeft(entry, "｜| ")
+	prefix := "落地"
+	if item.EgressRegionPrefix != "" {
+		prefix = item.EgressRegionPrefix
+	}
+	return prefix + "L｜" + strings.TrimSpace(entry)
 }
