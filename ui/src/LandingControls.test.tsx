@@ -11,7 +11,7 @@ import type { LandingView } from "@/landing-types";
 import type { AgentView } from "@/types";
 import { LandingProvider } from "@/views/LandingControls";
 import { LandingTableRows } from "./meridian/LandingNodes";
-import { MeridianNetworkMatrix } from "./meridian/NetworkMatrix";
+import { MeridianLinkTests } from "./meridian/LinkTests";
 import type { InstalledAppInstance } from "@/views/installed-apps-model";
 import { selectedLandingLatencies } from "@/views/landingLatency";
 
@@ -113,13 +113,12 @@ it("repairs missing landing regions before republishing subscriptions", async ()
   expect(update).toHaveBeenCalledWith(["a", "b"], 4, { a: "US", b: "TW" }, expect.any(AbortSignal));
 });
 
-it("renders global latency as read-only state", async () => {
+it("shows the selected landing's latency without mixing other landings", async () => {
   vi.spyOn(api, "landing").mockResolvedValue(overview());
   const container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
-  await act(async () => { root?.render(<LandingProvider enabled><MeridianNetworkMatrix instances={[{ application: { id: "entry-one", nodeId: "source-one" }, realityServices: [] } as unknown as InstalledAppInstance]} language="zh-CN" /></LandingProvider>); });
+  await act(async () => { root?.render(<LandingProvider enabled><MeridianLinkTests instances={[{ application: { id: "entry-one", nodeId: "source-one" }, realityServices: [] } as unknown as InstalledAppInstance]} language="zh-CN" /></LandingProvider>); });
   expect(container.textContent).toContain("12 ms");
-  expect(container.textContent).toContain("128 ms");
-  expect(Array.from(container.querySelectorAll(".text-destructive")).some((element) => element.textContent === "128 ms")).toBe(true);
+  expect(container.textContent).not.toContain("128 ms");
 });
