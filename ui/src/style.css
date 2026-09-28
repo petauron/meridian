@@ -99,3 +99,35 @@
         padding-right: 16px;
     }
 }
+
+/* The official UI stylesheet loads before Center's utilities. Keep the desktop
+   table layout scoped here so later mobile utility rules cannot override it. */
+@media (min-width: 768px) {
+    [data-app-workspace="vastora-official/meridian"] .meridian-link-tests-header,
+    [data-app-workspace="vastora-official/meridian"] .meridian-link-tests-row {
+        display: grid;
+        grid-template-columns: minmax(150px, 1.4fr) minmax(100px, 1fr) minmax(100px, 1fr) 80px 100px 80px;
+    }
+
+    [data-app-workspace="vastora-official/meridian"] .meridian-link-tests-row {
+        padding-block: 10px;
+    }
+
+    [data-app-workspace="vastora-official/meridian"] .meridian-link-tests-mobile {
+        display: none;
+    }
+
+    [data-app-workspace="vastora-official/meridian"] .meridian-link-tests-value,
+    [data-app-workspace="vastora-official/meridian"] .meridian-link-tests-action {
+        grid-column: auto;
+        grid-row: auto;
+    }
+
+    [data-app-workspace="vastora-official/meridian"] .meridian-link-tests-desktop {
+        display: block;
+    }
+
+    [data-app-workspace="vastora-official/meridian"] .meridian-link-tests-action {
+        min-height: 32px;
+    }
+}

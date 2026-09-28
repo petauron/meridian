@@ -75,7 +75,7 @@ export function MeridianLinkTests({ instances, language }: { instances: Installe
     }
   };
 
-  return <section aria-label={copy(language, "线路测速", "Link tests")} className="min-w-0 space-y-3">
+  return <section aria-label={copy(language, "线路测速", "Link tests")} className="meridian-link-tests min-w-0 space-y-3">
     <div className="flex flex-wrap items-end gap-3">
       <div className="min-w-52 flex-1 sm:max-w-xs">
         <label className="mb-1 block text-xs font-medium text-muted-foreground">{copy(language, "落地机", "Landing server")}</label>
@@ -91,7 +91,7 @@ export function MeridianLinkTests({ instances, language }: { instances: Installe
       {quality?.error ? <p role="alert" className="text-sm text-destructive">{copy(language, "测速结果读取失败，稍后再试。", "Could not load test results. Try again later.")}</p> : null}
       {notice ? <p role={notice.error ? "alert" : "status"} className={notice.error ? "text-sm text-destructive" : "text-sm text-muted-foreground"}>{notice.text}</p> : null}
       <div className="overflow-hidden rounded-lg border bg-card">
-        <div className="hidden grid-cols-[minmax(150px,1.4fr)_minmax(100px,1fr)_minmax(100px,1fr)_80px_100px_80px] items-center gap-3 border-b bg-muted/40 px-4 py-2 text-xs font-medium text-muted-foreground md:grid">
+        <div className="meridian-link-tests-header hidden items-center gap-3 border-b bg-muted/40 px-4 py-2 text-xs font-medium text-muted-foreground">
           <span>{copy(language, "线路机", "Entry node")}</span><span>{copy(language, "入口 → 落地", "Entry → landing")}</span><span>{copy(language, "落地 → 入口", "Landing → entry")}</span><span>{copy(language, "延迟", "Latency")}</span><span>{copy(language, "上次测速", "Last test")}</span><span className="text-right">{copy(language, "操作", "Action")}</span>
         </div>
         {instances.map((instance) => {
@@ -114,13 +114,13 @@ export function MeridianLinkTests({ instances, language }: { instances: Installe
           const latency = sample?.state === "direct" && sample.latencyMs != null && Number.isFinite(sample.latencyMs) && sample.latencyMs >= 0 ? sample.latencyMs : undefined;
           const stamp = check?.checkedAt || check?.updatedAt;
           const stateLabel = self ? copy(language, "同一节点", "Same node") : result === "active" || submittingId === nodeId ? copy(language, "测速中…", "Testing…") : result === "failed" ? copy(language, "测速失败", "Test failed") : result === "missing" ? copy(language, "未测速", "Not tested") : "";
-          return <div key={instance.application.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 border-b px-4 py-3 last:border-b-0 md:grid-cols-[minmax(150px,1.4fr)_minmax(100px,1fr)_minmax(100px,1fr)_80px_100px_80px] md:py-2.5">
-            <div className="min-w-0"><div className="flex items-center gap-2"><RegionFlag code={instance.realityServices[0]?.regionCode} language={language} /><span className="truncate text-sm font-medium" title={name}>{name}</span>{!self && sourceIssue ? <span className="shrink-0 text-xs text-muted-foreground">{sourceIssue}</span> : null}</div><div className="mt-0.5 text-xs text-muted-foreground md:hidden">{latency === undefined ? "—" : <span className={landingLatencyColor(latency)}>{Math.round(latency)} ms</span>}{stamp ? ` · ${new Date(stamp).toLocaleString(language, { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}` : ""}</div></div>
-            <div className="col-start-1 row-start-2 text-xs md:col-start-auto md:row-start-auto">{!self && result === "succeeded" && check?.link ? <><span className="md:hidden text-muted-foreground">{copy(language, "去", "Out")} </span><Speed value={check.link.uploadMbps} /></> : <span className={result === "failed" ? "text-destructive" : "text-muted-foreground"}>{stateLabel}</span>}</div>
-            <div className="col-start-1 row-start-3 text-xs md:col-start-auto md:row-start-auto">{!self && result === "succeeded" && check?.link ? <><span className="md:hidden text-muted-foreground">{copy(language, "回", "Back")} </span><Speed value={check.link.downloadMbps} /></> : null}</div>
-            <span className={`hidden text-xs tabular-nums md:block ${landingLatencyColor(latency)}`}>{latency === undefined ? "—" : `${Math.round(latency)} ms`}</span>
-            <time className="hidden text-xs text-muted-foreground md:block" dateTime={stamp ?? ""}>{stamp ? new Date(stamp).toLocaleString(language, { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}</time>
-            <Button type="button" variant="outline" size="sm" className="col-start-2 row-span-3 min-h-11 md:col-start-auto md:row-span-1 md:min-h-8" disabled={!canTest} aria-label={copy(language, `测试 ${name} 到 ${selected.name} 的带宽`, `Test bandwidth from ${name} to ${selected.name}`)} onClick={() => void start(nodeId)}>{active ? copy(language, "测速中", "Testing") : copy(language, "测速", "Test")}</Button>
+          return <div key={instance.application.id} className="meridian-link-tests-row grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 border-b px-4 py-3 last:border-b-0">
+            <div className="min-w-0"><div className="flex items-center gap-2"><RegionFlag code={instance.realityServices[0]?.regionCode} language={language} /><span className="truncate text-sm font-medium" title={name}>{name}</span>{!self && sourceIssue ? <span className="shrink-0 text-xs text-muted-foreground">{sourceIssue}</span> : null}</div><div className="meridian-link-tests-mobile mt-0.5 text-xs text-muted-foreground">{latency === undefined ? "—" : <span className={landingLatencyColor(latency)}>{Math.round(latency)} ms</span>}{stamp ? ` · ${new Date(stamp).toLocaleString(language, { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}` : ""}</div></div>
+            <div className="meridian-link-tests-value col-start-1 row-start-2 text-xs">{!self && result === "succeeded" && check?.link ? <><span className="meridian-link-tests-mobile text-muted-foreground">{copy(language, "去", "Out")} </span><Speed value={check.link.uploadMbps} /></> : <span className={result === "failed" ? "text-destructive" : "text-muted-foreground"}>{stateLabel}</span>}</div>
+            <div className="meridian-link-tests-value col-start-1 row-start-3 text-xs">{!self && result === "succeeded" && check?.link ? <><span className="meridian-link-tests-mobile text-muted-foreground">{copy(language, "回", "Back")} </span><Speed value={check.link.downloadMbps} /></> : null}</div>
+            <span className={`meridian-link-tests-desktop hidden text-xs tabular-nums ${landingLatencyColor(latency)}`}>{latency === undefined ? "—" : `${Math.round(latency)} ms`}</span>
+            <time className="meridian-link-tests-desktop hidden text-xs text-muted-foreground" dateTime={stamp ?? ""}>{stamp ? new Date(stamp).toLocaleString(language, { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}</time>
+            <Button type="button" variant="outline" size="sm" className="meridian-link-tests-action col-start-2 row-span-3 min-h-11" disabled={!canTest} aria-label={copy(language, `测试 ${name} 到 ${selected.name} 的带宽`, `Test bandwidth from ${name} to ${selected.name}`)} onClick={() => void start(nodeId)}>{active ? copy(language, "测速中", "Testing") : copy(language, "测速", "Test")}</Button>
           </div>;
         })}
         {!instances.length ? <p className="px-4 py-8 text-center text-sm text-muted-foreground">{copy(language, "没有匹配的线路机", "No matching entry nodes")}</p> : null}
