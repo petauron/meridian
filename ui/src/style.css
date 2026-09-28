@@ -58,5 +58,47 @@
 }
 
 /* Center owns shared components and theme tokens; Meridian owns its layout. */
+[data-app-workspace="vastora-official/meridian"] .meridian-node-list {
+    overflow: hidden;
+    border: 1px solid color-mix(in oklab, var(--foreground) 22%, var(--card));
+    border-radius: var(--radius);
+    background: var(--card);
+}
+
+[data-app-workspace="vastora-official/meridian"] .meridian-node-list [data-slot="table-header"] {
+    background: color-mix(in oklab, var(--muted) 45%, var(--card));
+}
+
+[data-app-workspace="vastora-official/meridian"] .meridian-node-list [data-slot="table-header"] [data-slot="table-row"] {
+    border-bottom-color: var(--input);
+}
+
+[data-app-workspace="vastora-official/meridian"] .meridian-node-list .meridian-node-group {
+    border-bottom-color: var(--input);
+    background: color-mix(in oklab, var(--muted) 65%, var(--card));
+}
+
+[data-app-workspace="vastora-official/meridian"] .meridian-node-list .meridian-node-group:hover {
+    background: color-mix(in oklab, var(--muted) 65%, var(--card));
+}
+
+[data-app-workspace="vastora-official/meridian"] .meridian-node-list :is([data-application-id], [data-landing-node-id]) {
+    border-bottom-color: var(--border);
+}
+
+[data-app-workspace="vastora-official/meridian"] .meridian-node-list .meridian-node-group > [data-slot="table-cell"] {
+    padding-inline: 16px;
+}
+
+@media (min-width: 1024px) {
+    [data-app-workspace="vastora-official/meridian"] .meridian-node-list .apps-instance-table :is(th, td):first-child {
+        padding-left: 16px;
+    }
+
+    [data-app-workspace="vastora-official/meridian"] .meridian-node-list .apps-instance-table :is(th, td):last-child {
+        padding-right: 16px;
+    }
+}
+
 [data-app-workspace="vastora-official/meridian"] .meridian-network-matrix th { font-size: 12px; font-weight: 500; }
 [data-app-workspace="vastora-official/meridian"] .meridian-network-matrix td { height: 56px; padding: 8px 12px; font-size: 12px; }

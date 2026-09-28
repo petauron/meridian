@@ -41,7 +41,7 @@ export function LandingTableRows({ language, search, siteNames, data, mutate }: 
   const id = useId();
   const servers = state?.view?.servers.filter((server) => !search || [server.name, server.nodeId, state.regions[server.nodeId] ? regionName(state.regions[server.nodeId], [language]) : ""].some((value) => value.toLocaleLowerCase().includes(search))) ?? [];
   return <>
-    <TableRow className="block bg-muted/30 hover:bg-muted/30 lg:table-row"><TableCell colSpan={5} className="block lg:table-cell">
+    <TableRow className="meridian-node-group block lg:table-row"><TableCell colSpan={5} className="block lg:table-cell">
       <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-xs font-medium">{copy(language, "落地机", "Landing nodes")} <span className="ml-1 text-muted-foreground">{servers.length}</span></h3><Button variant="ghost" size="sm" aria-expanded={adding} aria-controls={`${id}-add`} onClick={() => setAdding(!adding)}><PlusIcon data-icon="inline-start" />{copy(language, "添加落地机", "Add landing node")}</Button></div>
     </TableCell></TableRow>
     {adding && state ? <TableRow className="block hover:bg-transparent lg:table-row"><TableCell colSpan={5} className="block whitespace-normal lg:table-cell"><div id={`${id}-add`} className="max-w-xl py-3"><AddLandingNode state={state} language={language} onAdded={(nodeId) => { setAdding(false); setExpanded(nodeId); }} /></div></TableCell></TableRow> : null}
@@ -50,7 +50,7 @@ export function LandingTableRows({ language, search, siteNames, data, mutate }: 
       const open = expanded === server.nodeId;
       const panelId = `${id}-${server.nodeId}`;
       return <Fragment key={server.nodeId}>
-        <TableRow data-landing-node-id={server.nodeId} className="grid grid-cols-2 gap-x-4 gap-y-3 py-3 lg:table-row lg:py-0">
+        <TableRow data-landing-node-id={server.nodeId} className="grid grid-cols-2 gap-x-4 gap-y-3 px-4 py-3 lg:table-row lg:px-0 lg:py-0">
           <TableCell className="col-span-2 min-w-0 p-0 whitespace-normal lg:px-2 lg:py-3">
             <div className="flex items-center gap-2"><RegionFlag code={state.regions[server.nodeId]} language={language} /><span className="min-w-0 break-words font-medium">{server.name}</span></div>
             <p className="mt-1 text-xs text-muted-foreground"><NodeLocation regionCode={state.regions[server.nodeId]} siteName={siteNames?.[server.nodeId]} language={language} /> · {server.egressIp?.includes(":") ? "IPv6" : "IPv4"}</p>
