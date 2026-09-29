@@ -17,7 +17,7 @@ import { ipQualityCheckForAddress } from "@/views/ipQualityModel";
 import { IPQualityButton, useIPQuality } from "@/views/IPQuality";
 import { IPQualityComparison } from "@/views/IPQualityComparison";
 import { useLanding } from "@/views/LandingControls";
-import { RegionFlag } from "@/views/RegionFlag";
+import { RegionFlag } from "./RegionFlag";
 import { copy, userError } from "@/views/shared";
 import { LandingEgressIP } from "./EgressIP";
 import { NodeLocation } from "./NodeLocation";

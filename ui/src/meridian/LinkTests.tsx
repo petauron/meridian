@@ -8,7 +8,7 @@ import type { InstalledAppInstance } from "@/views/installed-apps-model";
 import { useLanding } from "@/views/LandingControls";
 import { useIPQuality } from "@/views/IPQuality";
 import { bandwidthBands } from "@/views/LinkBandwidthSummary";
-import { RegionFlag } from "@/views/RegionFlag";
+import { RegionFlag } from "./RegionFlag";
 import { landingLatencyColor } from "@/views/landingLatency";
 import { copy } from "@/views/shared";
 
