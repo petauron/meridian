@@ -36,7 +36,7 @@ func TestRenderLinksReplacesEntryRegionWithLandingRegion(t *testing.T) {
 		t.Fatalf("native subscription changed: %q", text)
 	}
 	routed, err := parseVLESSLink(lines[1])
-	if err != nil || routed.Fragment != "🔀 🇹🇼 台湾｜Entry-Alpha" || strings.Contains(routed.Fragment, "🇺🇸") || strings.Contains(routed.Fragment, "｜｜") {
+	if err != nil || routed.Fragment != "🇹🇼 台湾·落地｜Entry-Alpha" || strings.Contains(routed.Fragment, "🇺🇸") || strings.Contains(routed.Fragment, "｜｜") {
 		t.Fatalf("rendered subscription = %q", text)
 	}
 }
