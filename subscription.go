@@ -387,5 +387,5 @@ func routeName(item PublishedRoute) string {
 	if item.EgressRegionPrefix != "" {
 		prefix = item.EgressRegionPrefix
 	}
-	return prefix + "L｜" + strings.TrimSpace(entry)
+	return "🔀 " + prefix + "｜" + strings.TrimSpace(entry)
 }
