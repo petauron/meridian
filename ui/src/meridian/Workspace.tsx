@@ -10,7 +10,7 @@ import { IPQualityButton } from "@/views/IPQuality";
 import { LandingNotice, useLanding } from "@/views/LandingControls";
 import { LandingTableRows } from "./LandingNodes";
 import { NodeLocation } from "./NodeLocation";
-import { RegionFlag } from "@/views/RegionFlag";
+import { RegionFlag } from "./RegionFlag";
 import { ApplicationStatus, ApplicationUpdate, ApplicationPrimaryStatus, AccessStatus } from "@/views/apps/InstalledApplicationPrimitives";
 import { api } from "@/api";
 import type { InstalledAppInstance } from "@/views/installed-apps-model";
