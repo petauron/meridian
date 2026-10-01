@@ -19,6 +19,7 @@ import (
 
 const (
 	DefaultRealityPort      = 443
+	RealityBackendPort      = 10443
 	DefaultLandingSOCKSPort = 1080
 	XrayAPIListenPort       = 10085
 	XrayMinimumClient       = "0.0.0"
@@ -51,6 +52,7 @@ type RealityEndpoint struct {
 	ID            string   `json:"id"`
 	EntryID       string   `json:"entryId"`
 	InboundTag    string   `json:"inboundTag"`
+	ListenAddress string   `json:"listenAddress"`
 	ListenPort    int      `json:"listenPort"`
 	AdvertiseHost string   `json:"advertiseHost"`
 	AdvertisePort int      `json:"advertisePort"`
@@ -106,7 +108,8 @@ func HysteriaCertificateNotAfter(endpoint HysteriaEndpoint) (time.Time, error) {
 }
 
 func (e RealityEndpoint) Validate() error {
-	if e.validateSubscription() != nil || !validInboundTag(e.InboundTag) || !validPort(e.ListenPort) || !validRealityTarget(e.Target) || strings.TrimSpace(e.PrivateKey) == "" || len(e.PrivateKey) > 256 {
+	address, addressErr := netip.ParseAddr(e.ListenAddress)
+	if e.validateSubscription() != nil || !validInboundTag(e.InboundTag) || addressErr != nil || !privateServiceIPv4(address) || address.String() != e.ListenAddress || e.ListenPort < 1024 || !validPort(e.ListenPort) || !validRealityTarget(e.Target) || strings.TrimSpace(e.PrivateKey) == "" || len(e.PrivateKey) > 256 {
 		return errors.New("meridian: invalid REALITY endpoint")
 	}
 	return nil
@@ -177,7 +180,7 @@ func RenderXrayConfiguration(plan XrayPlan) ([]byte, error) {
 			})
 		}
 		inbounds = append(inbounds, map[string]any{
-			"listen":   "0.0.0.0",
+			"listen":   endpoint.ListenAddress,
 			"port":     endpoint.ListenPort,
 			"protocol": "vless",
 			"tag":      endpoint.InboundTag,
