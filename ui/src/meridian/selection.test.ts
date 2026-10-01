@@ -47,11 +47,13 @@ describe("node selection evidence", () => {
     expect(matchesPurpose(undefined, "ai")).toBe(false);
   });
   it("does not call a guarded or unsynchronized entry ready", () => {
-    const instance = { agent: { connected: true }, application: { status: "running", role: "worker", nodeSyncStatus: "ready" }, controller: {}, realityServices: [{ protocols: ["vless"] }], realityPublications: [{ status: "ready" }] } as InstalledAppInstance;
+    const instance = { agent: { connected: true, status: "active" }, application: { status: "running", role: "worker", nodeSyncStatus: "ready" }, controller: {}, realityServices: [{ protocols: ["vless"] }], realityPublications: [{ status: "ready" }] } as InstalledAppInstance;
     expect(entryAvailable(instance)).toBe(true);
     instance.application.nodeSyncStatus = "pending";
     expect(entryAvailable(instance)).toBe(false);
     instance.application.nodeSyncStatus = "ready";
+    instance.realityServices[0].guardStatus = "hardening";
+    expect(entryAvailable(instance)).toBe(false);
     instance.realityServices[0].guardStatus = "action_required";
     expect(entryAvailable(instance)).toBe(false);
   });

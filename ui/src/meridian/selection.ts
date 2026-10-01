@@ -22,7 +22,7 @@ export function matchesPurpose(check: IPQualityCheck | undefined, purpose: strin
 export function entryAvailable(instance: InstalledAppInstance) {
   const service = instance.realityServices[0];
   const hy2Only = service?.protocols?.includes("hy2") && !service.protocols.includes("vless");
-  return Boolean(instance.agent?.connected && instance.application.status === "running" && !instance.activeChange && service && !instance.realityServices.some(serviceNeedsAttention) && !instance.realityPublications.some(publicationNeedsAttention) &&
+  return Boolean(instance.agent?.connected && instance.agent.status === "active" && !instance.agent.credentialRevoked && instance.application.status === "running" && !instance.activeChange && service && !instance.realityServices.some((value) => serviceNeedsAttention(value) || value.guardStatus === "pending" || value.guardStatus === "hardening") && !instance.realityPublications.some(publicationNeedsAttention) &&
     (instance.application.role !== "worker" || Boolean(instance.controller && instance.application.nodeSyncStatus === "ready")) &&
     (hy2Only || instance.realityPublications.some((publication) => publication.status === "ready" && !publication.actionRequired && !publication.lastError)));
 }
