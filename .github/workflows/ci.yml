@@ -41,7 +41,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: petauron/vastora
-          ref: 583e2f23ae3fbc91671ed6633b8776dbce4f9b95
+          ref: c4d4a37495a3aba59f39b0f07b425320560df36a
           path: vastora
           persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -64,15 +64,15 @@ jobs:
           VASTORA_WEB_SOURCE: ${{ github.workspace }}/vastora/web/src
         run: |
           npm run build --prefix ui
-          test -s ui/dist/ui-meridian-0.1.0-alpha.12.js
-          test -s ui/dist/ui-meridian-0.1.0-alpha.12.css
-          test "$(wc -c < ui/dist/ui-meridian-0.1.0-alpha.12.js)" -le 4194304
-          test "$(wc -c < ui/dist/ui-meridian-0.1.0-alpha.12.css)" -le 4194304
-          ! grep -Fq 'process.env.NODE_ENV' ui/dist/ui-meridian-0.1.0-alpha.12.js
+          test -s ui/dist/ui-meridian-0.1.0-alpha.13.js
+          test -s ui/dist/ui-meridian-0.1.0-alpha.13.css
+          test "$(wc -c < ui/dist/ui-meridian-0.1.0-alpha.13.js)" -le 4194304
+          test "$(wc -c < ui/dist/ui-meridian-0.1.0-alpha.13.css)" -le 4194304
+          ! grep -Fq 'process.env.NODE_ENV' ui/dist/ui-meridian-0.1.0-alpha.13.js
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: meridian-ui-0.1.0-alpha.12
+          name: meridian-ui-0.1.0-alpha.13
           path: |
-            ui/dist/ui-meridian-0.1.0-alpha.12.js
-            ui/dist/ui-meridian-0.1.0-alpha.12.css
+            ui/dist/ui-meridian-0.1.0-alpha.13.js
+            ui/dist/ui-meridian-0.1.0-alpha.13.css
           if-no-files-found: error
