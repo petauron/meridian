@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { IPQualityCheck } from "@/ip-quality-types";
 import type { InstalledAppInstance } from "@/views/installed-apps-model";
-import { compareSelection, entryAvailable, matchesPurpose } from "./selection";
+import { compareSelection, entryAvailable, entryState, matchesEntryPurpose, matchesPurpose } from "./selection";
 
 function report(score: number, overrides: Partial<IPQualityCheck> = {}): IPQualityCheck {
   return { state: "succeeded", checkedAt: new Date().toISOString(), stale: false,
@@ -45,6 +45,17 @@ describe("node selection evidence", () => {
   it("retains unmeasured nodes in the unfiltered view", () => {
     expect(matchesPurpose(undefined, "all")).toBe(true);
     expect(matchesPurpose(undefined, "ai")).toBe(false);
+  });
+  it("excludes unavailable entries from use filters while preserving the all-nodes view", () => {
+    const instance = { agent: { connected: true, status: "active" }, application: { status: "running" }, realityServices: [{}], realityPublications: [{ status: "failed" }] } as InstalledAppInstance;
+    expect(entryState(instance)).toBe("access_error");
+    expect(matchesEntryPurpose(instance, report(90), "ai")).toBe(false);
+    expect(matchesEntryPurpose(instance, report(90), "all")).toBe(true);
+    instance.realityPublications[0].status = "ready";
+    expect(matchesEntryPurpose(instance, report(90, { checkedAt: "2020-01-01T00:00:00Z" }), "ai")).toBe(true);
+    instance.agent!.connected = false;
+    expect(entryState(instance)).toBe("offline");
+    expect(matchesEntryPurpose(instance, report(90), "ai")).toBe(false);
   });
   it("does not call a guarded or unsynchronized entry ready", () => {
     const instance = { agent: { connected: true, status: "active" }, application: { status: "running", role: "worker", nodeSyncStatus: "ready" }, controller: {}, realityServices: [{ protocols: ["vless"] }], realityPublications: [{ status: "ready" }] } as InstalledAppInstance;

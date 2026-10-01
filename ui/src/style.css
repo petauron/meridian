@@ -136,7 +136,7 @@
 [data-app-workspace="vastora-official/meridian"] .meridian-comparison-table {
     display: table;
     width: 100%;
-    min-width: 900px;
+    min-width: 980px;
     table-layout: fixed;
 }
 [data-app-workspace="vastora-official/meridian"] .meridian-comparison-table th {
@@ -144,7 +144,7 @@
     font-weight: 500;
 }
 [data-app-workspace="vastora-official/meridian"] .meridian-comparison-table :is(th, td) {
-    padding: 8px 6px;
+    padding: 5px 6px;
     vertical-align: middle;
 }
 [data-app-workspace="vastora-official/meridian"] .meridian-comparison-table :is(th, td):first-child {
@@ -153,11 +153,10 @@
 [data-app-workspace="vastora-official/meridian"] .meridian-comparison-table :is(th, td):last-child {
     padding-right: 8px;
 }
-[data-app-workspace="vastora-official/meridian"] .meridian-quality-column { width: 134px; }
-[data-app-workspace="vastora-official/meridian"] .meridian-service-column { width: 54px; }
-[data-app-workspace="vastora-official/meridian"] .meridian-state-column { width: 86px; }
-[data-app-workspace="vastora-official/meridian"] .meridian-connection-column { width: 86px; }
-[data-app-workspace="vastora-official/meridian"] .meridian-actions-column { width: 36px; }
+[data-app-workspace="vastora-official/meridian"] .meridian-quality-column { width: 146px; }
+[data-app-workspace="vastora-official/meridian"] .meridian-node-column { width: 24%; }
+[data-app-workspace="vastora-official/meridian"] .meridian-state-column { width: 142px; }
+[data-app-workspace="vastora-official/meridian"] .meridian-actions-column { width: 44px; }
 [data-app-workspace="vastora-official/meridian"] .meridian-comparison-table .meridian-service-cell {
     padding-inline: 4px;
     text-align: center;
@@ -190,8 +189,8 @@
     font-weight: 400;
 }
 [data-app-workspace="vastora-official/meridian"] .meridian-quality-meta {
-    font-size: 11px;
-    line-height: 16px;
+    font-size: 12px;
+    line-height: 18px;
     white-space: nowrap;
 }
 [data-app-workspace="vastora-official/meridian"] .apps-three-xui-toolbar {
@@ -224,4 +223,55 @@
         background: var(--card);
         box-shadow: inset -1px 0 var(--border);
     }
+}
+
+[data-app-workspace="vastora-official/meridian"] .meridian-node-list [data-slot="table-container"] {
+    max-height: 76vh;
+    overflow: auto;
+    overscroll-behavior: contain;
+}
+[data-app-workspace="vastora-official/meridian"] .meridian-comparison-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: color-mix(in oklab, var(--muted) 45%, var(--card));
+    box-shadow: inset 0 -1px var(--input);
+}
+[data-app-workspace="vastora-official/meridian"] .meridian-comparison-table thead th:first-child { z-index: 3; }
+[data-app-workspace="vastora-official/meridian"] .meridian-unlock-status {
+    min-width: 32px;
+    min-height: 32px;
+    padding-inline: 3px;
+    font-size: 13px;
+}
+[data-app-workspace="vastora-official/meridian"] .meridian-view-bar,
+[data-app-workspace="vastora-official/meridian"] .meridian-evidence-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px 12px;
+}
+[data-app-workspace="vastora-official/meridian"] .meridian-evidence-bar { margin-bottom: 4px; }
+[data-app-workspace="vastora-official/meridian"] .meridian-history-label { color: var(--foreground); }
+[data-app-workspace="vastora-official/meridian"] .meridian-entry-status {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+}
+@media (max-width: 1023px) {
+    [data-app-workspace="vastora-official/meridian"] .meridian-node-column { width: 190px; }
+    [data-app-workspace="vastora-official/meridian"] .meridian-unlock-status,
+    [data-app-workspace="vastora-official/meridian"] [data-slot="dropdown-menu-trigger"] {
+        min-height: 44px;
+        min-width: 44px;
+    }
+}
+
+[data-app-workspace="vastora-official/meridian"] .meridian-node-list .meridian-comparison-table :is(th, td) { padding-block: 4px; }
+[data-app-workspace="vastora-official/meridian"] .meridian-node-list [data-slot="table-container"] { scrollbar-width: thin; scrollbar-color: var(--input) var(--card); }
+@media (min-width: 1024px) {
+    [data-app-workspace="vastora-official/meridian"] .meridian-quality-score > button { height: 24px; min-height: 24px; width: 24px; }
 }

@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { APIError, api } from "@/api";
+import { SelectControl } from "@/components/SelectControl";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { NodeDiagnosticCheck } from "@/node-diagnostics-types";
@@ -26,10 +27,9 @@ function lastResult(check?: NodeDiagnosticCheck) {
   return check?.state === "succeeded" && check.link ? "succeeded" : "missing";
 }
 
-export function MeridianLinkTests({ instances, language }: { instances: InstalledAppInstance[]; language: Language }) {
+export function MeridianLinkTests({ instances, language, entryId, landingId, onEntryChange, onLandingChange }: { instances: InstalledAppInstance[]; language: Language; entryId: string; landingId: string; onEntryChange: (id: string) => void; onLandingChange: (id: string) => void }) {
   const landing = useLanding();
   const quality = useIPQuality();
-  const [landingId, setLandingId] = useState("");
   const [submittingId, setSubmittingId] = useState("");
   const [notice, setNotice] = useState<{ error: boolean; text: string } | null>(null);
   const submitting = useRef(false);
@@ -79,11 +79,12 @@ export function MeridianLinkTests({ instances, language }: { instances: Installe
     <div className="flex flex-wrap items-end gap-3">
       <div className="min-w-52 flex-1 sm:max-w-xs">
         <label className="mb-1 block text-xs font-medium text-muted-foreground">{copy(language, "落地机", "Landing server")}</label>
-        <Select value={selected?.nodeId ?? null} onValueChange={(value) => { setLandingId(value ?? ""); setNotice(null); }} items={servers.map((server) => ({ value: server.nodeId, label: server.name }))}>
+        <Select value={selected?.nodeId ?? null} onValueChange={(value) => { onLandingChange(value ?? ""); setNotice(null); }} items={servers.map((server) => ({ value: server.nodeId, label: server.name }))}>
           <SelectTrigger className="min-h-11 w-full md:min-h-8" aria-label={copy(language, "选择落地机", "Choose landing server")}><SelectValue placeholder={copy(language, "选择落地机", "Choose landing server")} /></SelectTrigger>
           <SelectContent><SelectGroup>{servers.map((server) => <SelectItem key={server.nodeId} value={server.nodeId}><RegionFlag code={landing.regions[server.nodeId]} language={language} />{server.name}</SelectItem>)}</SelectGroup></SelectContent>
         </Select>
       </div>
+      <div className="min-w-52 flex-1 sm:max-w-xs"><label className="mb-1 block text-xs font-medium text-muted-foreground">{copy(language, "线路机", "Entry node")}</label><SelectControl aria-label={copy(language, "选择线路机", "Choose entry node")} value={entryId} onValueChange={onEntryChange} options={[{ value: "", label: copy(language, "全部线路机", "All entry nodes") }, ...instances.map((instance) => ({ value: instance.application.nodeId, label: instance.agent?.name ?? instance.application.nodeId }))]} /></div>
       <p className="pb-1 text-xs text-muted-foreground">{copy(language, "私网单线程 · 双向各 10 秒 · 结果单位 Mbps", "Private network, one stream · 10 s each way · Mbps")}</p>
     </div>
     {!servers.length ? <p className="rounded-lg border px-4 py-8 text-center text-sm text-muted-foreground">{copy(language, "尚未添加落地机", "No landing servers configured")}</p> : <>
@@ -94,7 +95,7 @@ export function MeridianLinkTests({ instances, language }: { instances: Installe
         <div className="meridian-link-tests-header hidden items-center gap-3 border-b bg-muted/40 px-4 py-2 text-xs font-medium text-muted-foreground">
           <span>{copy(language, "线路机", "Entry node")}</span><span>{copy(language, "入口 → 落地", "Entry → landing")}</span><span>{copy(language, "落地 → 入口", "Landing → entry")}</span><span>{copy(language, "延迟", "Latency")}</span><span>{copy(language, "上次测速", "Last test")}</span><span className="text-right">{copy(language, "操作", "Action")}</span>
         </div>
-        {instances.map((instance) => {
+        {instances.filter((instance) => !entryId || instance.application.nodeId === entryId).map((instance) => {
           const nodeId = instance.application.nodeId;
           const name = instance.agent?.name ?? nodeId;
           const self = nodeId === selected.nodeId;

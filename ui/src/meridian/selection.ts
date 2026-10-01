@@ -19,12 +19,26 @@ export function matchesPurpose(check: IPQualityCheck | undefined, purpose: strin
   return services.every((name) => check?.report?.services.some((service) => service.name === name && service.status.trim().toLowerCase() === "yes"));
 }
 
-export function entryAvailable(instance: InstalledAppInstance) {
+export function entryState(instance: InstalledAppInstance) {
+  if (!instance.agent?.connected || instance.agent.status !== "active" || instance.agent.credentialRevoked) return "offline";
+  if (instance.activeChange?.reconciliationRequired) return "recovery";
+  if (instance.activeChange) return "changing";
+  if (instance.application.status !== "running") return "app_unavailable";
+  if (instance.application.role === "worker" && (!instance.controller || instance.application.nodeSyncStatus !== "ready")) return "syncing";
   const service = instance.realityServices[0];
+  if (!service) return "unconfigured";
+  if (instance.realityServices.some(serviceNeedsAttention) || instance.realityPublications.some(publicationNeedsAttention)) return "access_error";
+  if (instance.realityServices.some((value) => value.guardStatus === "pending" || value.guardStatus === "hardening") || instance.realityPublications.some((value) => value.status === "pending" || value.status === "applying")) return "changing";
   const hy2Only = service?.protocols?.includes("hy2") && !service.protocols.includes("vless");
-  return Boolean(instance.agent?.connected && instance.agent.status === "active" && !instance.agent.credentialRevoked && instance.application.status === "running" && !instance.activeChange && service && !instance.realityServices.some((value) => serviceNeedsAttention(value) || value.guardStatus === "pending" || value.guardStatus === "hardening") && !instance.realityPublications.some(publicationNeedsAttention) &&
-    (instance.application.role !== "worker" || Boolean(instance.controller && instance.application.nodeSyncStatus === "ready")) &&
-    (hy2Only || instance.realityPublications.some((publication) => publication.status === "ready" && !publication.actionRequired && !publication.lastError)));
+  return hy2Only || instance.realityPublications.some((publication) => publication.status === "ready") ? "ready" : "unconfigured";
+}
+
+export function entryAvailable(instance: InstalledAppInstance) {
+  return entryState(instance) === "ready";
+}
+
+export function matchesEntryPurpose(instance: InstalledAppInstance, check: IPQualityCheck | undefined, purpose: string) {
+  return purpose === "all" || entryAvailable(instance) && matchesPurpose(check, purpose);
 }
 
 // Keep unavailable nodes last; historical reports never outrank current reports.
