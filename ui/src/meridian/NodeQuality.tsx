@@ -1,4 +1,5 @@
 import type { IPQualityCheck } from "@/ip-quality-types";
+import { TableCell, TableHead } from "@/components/ui/table";
 import type { Language } from "@/translations";
 import { AssessmentBadge, AssessmentTypeBadge } from "@/views/IPAssessment";
 import { IPQualityButton } from "@/views/IPQuality";
@@ -6,7 +7,13 @@ import { cleanIPQualityValue, unlockLabel, unlockServiceLabel, unlockServices } 
 import { copy } from "@/views/shared";
 import { historicalReport, usableReport } from "./selection";
 
-export function NodeQuality({ nodeId, name, address, check, language, landing = false }: {
+export const nodeTableColumns = 5 + unlockServices.length;
+
+export function UnlockHeaders() {
+  return <>{unlockServices.map((name) => <TableHead key={name} scope="col" className="meridian-service-cell" title={unlockServiceLabel(name)}>{name === "ChatGPT" || name === "AmazonPrimeVideo" ? unlockServiceLabel(name, true) : unlockServiceLabel(name)}</TableHead>)}</>;
+}
+
+export function NodeQualityCells({ nodeId, name, address, check, language, landing = false }: {
   nodeId: string; name: string; address?: string; check?: IPQualityCheck; language: Language; landing?: boolean;
 }) {
   const usable = usableReport(check);
@@ -15,14 +22,20 @@ export function NodeQuality({ nodeId, name, address, check, language, landing = 
   const date = check?.checkedAt ? new Date(check.checkedAt) : undefined;
   const dateLabel = date && Number.isFinite(date.getTime()) ? date.toLocaleDateString(language, { month: "numeric", day: "numeric" }) : "";
   const family = address ? address.includes(":") ? "IPv6" : "IPv4" : "IP";
-  return <div className="meridian-quality">
-    <div className="meridian-quality-score">
-      <AssessmentBadge language={language} assessment={assessment} />
-      <span className="text-xs text-muted-foreground">{family}</span>
-      <AssessmentTypeBadge language={language} assessment={assessment} checkedAt={check?.checkedAt} />
-    </div>
-    <div className="min-w-0">
-      <div className="meridian-unlocks" aria-label={copy(language, `${name} 解锁状态`, `${name} service availability`)}>{unlockServices.map((serviceName) => {
+  const descriptionDate = historical ? copy(language, `历史检测 ${dateLabel} · 建议复测`, `Historical ${dateLabel} · Recheck`) : usable ? copy(language, `检测 ${dateLabel}`, `Checked ${dateLabel}`) : copy(language, "尚无有效检测", "No valid check");
+  return <>
+    <TableCell className="meridian-quality-cell">
+      <div className="meridian-quality-score">
+        <AssessmentBadge language={language} assessment={assessment} />
+        <AssessmentTypeBadge language={language} assessment={assessment} checkedAt={check?.checkedAt} />
+        <IPQualityButton nodeId={nodeId} name={name} language={language} egressAddress={address} landingEgress={landing} compact />
+      </div>
+      <div className="meridian-quality-meta text-muted-foreground" title={descriptionDate}>
+        {family} · {usable ? `${dateLabel}${historical ? copy(language, " 历史", " Past") : ""}` : copy(language, "待检测", "Pending")}
+      </div>
+      {landing && address?.includes(":") ? <div className="meridian-quality-meta text-muted-foreground">{copy(language, "仅 IPv6 目标", "IPv6 targets only")}</div> : null}
+    </TableCell>
+    {unlockServices.map((serviceName) => {
         const service = usable ? check?.report?.services.find((item) => item.name === serviceName) : undefined;
         const status = cleanIPQualityValue(service?.status).toLowerCase();
         const region = cleanIPQualityValue(service?.regionCode).toUpperCase();
@@ -36,15 +49,9 @@ export function NodeQuality({ nodeId, name, address, check, language, landing = 
         const label = unlockLabel(language, service?.status);
         const mark = matched ? "✓" : mismatch ? region : yes ? "✓?" : blocked ? "×" : limited ? copy(language, "受限", "Limited") : ["fail", "failed", "error"].includes(status) ? "!" : "?";
         const description = [unlockServiceLabel(serviceName), label, region, mismatch ? copy(language, "与出口地区不同", "Different from exit region") : "", historical ? copy(language, "历史检测", "Historical result") : ""].filter(Boolean).join(" · ");
-        return <span key={serviceName} className={matched ? "text-latency-fast" : mismatch || limited ? "text-latency-medium" : blocked ? "text-destructive" : "text-muted-foreground"} title={description} aria-label={description}>
-          <span>{unlockServiceLabel(serviceName, true)}</span><strong>{mark}</strong>
-        </span>;
-      })}</div>
-      <div className="meridian-quality-meta text-xs text-muted-foreground">
-        <span>{historical ? copy(language, `历史 ${dateLabel} · 需复测`, `Historical ${dateLabel} · Recheck`) : usable ? copy(language, `检测 ${dateLabel}`, `Checked ${dateLabel}`) : copy(language, "尚无有效检测", "No valid check")}</span>
-        {landing && address?.includes(":") ? <span>{copy(language, "仅 IPv6 目标", "IPv6 destinations only")}</span> : null}
-      </div>
-    </div>
-    <IPQualityButton nodeId={nodeId} name={name} language={language} egressAddress={address} landingEgress={landing} compact />
-  </div>;
+        return <TableCell key={serviceName} className="meridian-service-cell">
+          <span className={matched ? "text-latency-fast" : mismatch || limited ? "text-latency-medium" : blocked ? "text-destructive" : "text-muted-foreground"} title={description} aria-label={`${name} · ${description}`}><strong>{mark}</strong></span>
+        </TableCell>;
+    })}
+  </>;
 }
