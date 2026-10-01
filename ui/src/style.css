@@ -131,3 +131,65 @@
         min-height: 32px;
     }
 }
+
+/* Leave room for connection status and its action; never split short labels. */
+[data-app-workspace="vastora-official/meridian"] .meridian-node-list :is([data-application-id], [data-landing-node-id]) > [data-slot="table-cell"]:nth-child(4) {
+    white-space: normal;
+    word-break: normal;
+}
+[data-app-workspace="vastora-official/meridian"] .meridian-node-list :is([data-application-id], [data-landing-node-id]) > [data-slot="table-cell"]:nth-child(4) button {
+    white-space: nowrap;
+}
+@media (min-width: 1024px) {
+    [data-app-workspace="vastora-official/meridian"] .meridian-node-list :is([data-application-id], [data-landing-node-id]) > [data-slot="table-cell"] {
+        padding-block: 10px;
+    }
+}
+
+[data-app-workspace="vastora-official/meridian"] .meridian-quality {
+    display: grid;
+    grid-template-columns: 70px minmax(0, 1fr) 28px;
+    align-items: center;
+    gap: 8px;
+}
+[data-app-workspace="vastora-official/meridian"] .meridian-quality-score {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 2px 4px;
+}
+[data-app-workspace="vastora-official/meridian"] .meridian-unlocks {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 4px;
+    font-size: 11px;
+}
+[data-app-workspace="vastora-official/meridian"] .meridian-unlocks > span {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    white-space: nowrap;
+}
+[data-app-workspace="vastora-official/meridian"] .meridian-quality-meta {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 2px 8px;
+    margin-top: 4px;
+    font-size: 10px;
+}
+@media (max-width: 639px) {
+    [data-app-workspace="vastora-official/meridian"] .meridian-quality {
+        grid-template-columns: minmax(0, 1fr) 44px;
+    }
+    [data-app-workspace="vastora-official/meridian"] .meridian-quality-score {
+        grid-column: 1 / -1;
+        justify-content: flex-start;
+    }
+    [data-app-workspace="vastora-official/meridian"] .meridian-quality > button {
+        min-height: 44px;
+        min-width: 44px;
+    }
+}
