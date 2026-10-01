@@ -13,14 +13,17 @@ import { TableCell, TableRow } from "@/components/ui/table";
 import { regionName } from "@/lib/regions";
 import { cn } from "@/lib/utils";
 import { assessmentLabel } from "@/views/IPAssessment";
-import { ipQualityCheckForAddress } from "@/views/ipQualityModel";
-import { IPQualityButton, useIPQuality } from "@/views/IPQuality";
+import { ipQualityCheckForAddress, landingQualityAddress } from "@/views/ipQualityModel";
+import { useIPQuality } from "@/views/IPQuality";
 import { IPQualityComparison } from "@/views/IPQualityComparison";
 import { useLanding } from "@/views/LandingControls";
 import { RegionFlag } from "./RegionFlag";
 import { copy, userError } from "@/views/shared";
 import { LandingEgressIP } from "./EgressIP";
 import { NodeLocation } from "./NodeLocation";
+
+import { compareSelection, matchesPurpose } from "./selection";
+import { NodeQuality } from "./NodeQuality";
 
 type LandingState = NonNullable<ReturnType<typeof useLanding>>;
 type Server = LandingView["servers"][number];
@@ -33,13 +36,18 @@ function selectedRegions(state: LandingState, nodeIds: string[]) {
   }));
 }
 
-export function LandingTableRows({ language, search, siteNames, data, mutate }: { language: Language; search: string; siteNames?: Record<string, string>; data: AppData; mutate: Mutate }) {
+export function LandingTableRows({ language, search, purpose, order, siteNames, data, mutate }: { language: Language; search: string; purpose: string; order: string; siteNames?: Record<string, string>; data: AppData; mutate: Mutate }) {
   const state = useLanding();
   const quality = useIPQuality();
   const [adding, setAdding] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const id = useId();
-  const servers = state?.view?.servers.filter((server) => !search || [server.name, server.nodeId, state.regions[server.nodeId] ? regionName(state.regions[server.nodeId], [language]) : ""].some((value) => value.toLocaleLowerCase().includes(search))) ?? [];
+  const checkFor = (server: Server) => {
+    if (quality?.error) return undefined;
+    const address = landingQualityAddress(server.egressIp ?? "", data.agents.find((agent) => agent.id === server.nodeId)?.publicEgress, (quality?.targets ?? []).filter((target) => target.agentId === server.nodeId));
+    return ipQualityCheckForAddress(quality?.checks ?? [], server.nodeId, address);
+  };
+  const servers = state?.view?.servers.filter((server) => !search || [server.name, server.nodeId, state.regions[server.nodeId] ? regionName(state.regions[server.nodeId], [language]) : ""].some((value) => value.toLocaleLowerCase().includes(search))).filter((server) => matchesPurpose(checkFor(server), purpose)).sort((a, b) => compareSelection({ ready: a.status === "ready", check: checkFor(a), name: a.name }, { ready: b.status === "ready", check: checkFor(b), name: b.name }, order)) ?? [];
   return <>
     <TableRow className="meridian-node-group block lg:table-row"><TableCell colSpan={5} className="block lg:table-cell">
       <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-xs font-medium">{copy(language, "落地机", "Landing nodes")} <span className="ml-1 text-muted-foreground">{servers.length}</span></h3><Button variant="ghost" size="sm" aria-expanded={adding} aria-controls={`${id}-add`} onClick={() => setAdding(!adding)}><PlusIcon data-icon="inline-start" />{copy(language, "添加落地机", "Add landing node")}</Button></div>
@@ -55,7 +63,7 @@ export function LandingTableRows({ language, search, siteNames, data, mutate }: 
             <div className="flex items-center gap-2"><RegionFlag code={state.regions[server.nodeId]} language={language} /><span className="min-w-0 break-words font-medium">{server.name}</span></div>
             <p className="mt-1 text-xs text-muted-foreground"><NodeLocation regionCode={state.regions[server.nodeId]} siteName={siteNames?.[server.nodeId]} language={language} /> · {server.egressIp?.includes(":") ? "IPv6" : "IPv4"}</p>
           </TableCell>
-          <TableCell className="col-span-2 min-w-0 p-0 whitespace-normal lg:px-2 lg:py-3"><IPQualityButton nodeId={server.nodeId} name={server.name} language={language} egressAddress={server.egressIp ?? ""} landingEgress /></TableCell>
+          <TableCell className="col-span-2 min-w-0 p-0 whitespace-normal lg:px-2 lg:py-3"><NodeQuality nodeId={server.nodeId} name={server.name} language={language} address={server.egressIp ?? ""} check={checkFor(server)} landing /></TableCell>
           <TableCell className="min-w-0 p-0 whitespace-normal lg:px-2 lg:py-3"><span className="inline-flex items-center gap-2"><span aria-hidden="true" className={cn("apps-status-dot", server.status === "ready" ? "bg-latency-fast" : ["failed", "offline"].includes(server.status) ? "bg-destructive" : "bg-muted-foreground")} />{copy(language, statusLabels[server.status][0], statusLabels[server.status][1])}</span></TableCell>
           <TableCell className="min-w-0 p-0 whitespace-normal lg:px-2 lg:py-3"><LandingSubscriptions server={server} language={language} onConfigure={() => setExpanded(open ? null : server.nodeId)} /></TableCell>
           <TableCell className="col-span-2 p-0 lg:px-2 lg:py-3"><div className="flex justify-end"><Button variant="ghost" size="icon-sm" className="max-lg:min-h-11 max-lg:min-w-11" aria-label={copy(language, `${server.name} 落地设置`, `${server.name} landing settings`)} aria-expanded={open} aria-controls={panelId} onClick={() => setExpanded(open ? null : server.nodeId)}>{open ? <ChevronDownIcon aria-hidden="true" /> : <SlidersHorizontalIcon aria-hidden="true" />}</Button></div></TableCell>
@@ -75,7 +83,7 @@ export function LandingTableRows({ language, search, siteNames, data, mutate }: 
         </div></TableCell></TableRow> : null}
       </Fragment>;
     })}
-    {state?.view && !state.failed && !servers.length ? <TableRow className="block lg:table-row"><TableCell colSpan={5} className="block py-5 text-xs text-muted-foreground lg:table-cell">{search ? copy(language, "没有匹配的落地机", "No matching landing nodes") : copy(language, "尚未添加落地机", "No landing nodes configured")}</TableCell></TableRow> : null}
+    {state?.view && !state.failed && !servers.length ? <TableRow className="block lg:table-row"><TableCell colSpan={5} className="block py-5 text-xs text-muted-foreground lg:table-cell">{search || purpose !== "all" ? copy(language, "没有匹配的落地机", "No matching landing nodes") : copy(language, "尚未添加落地机", "No landing nodes configured")}</TableCell></TableRow> : null}
     <TableRow className="block hover:bg-transparent lg:table-row"><TableCell colSpan={5} className="block whitespace-normal lg:table-cell"><div className="py-2"><IPQualityComparison language={language} nodes={quality?.agents.map((agent) => ({ id: agent.id, name: agent.name, address: agent.publicEgress?.address })) ?? []} /></div></TableCell></TableRow>
   </>;
 }
