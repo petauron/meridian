@@ -167,9 +167,9 @@
 }
 [data-app-workspace="vastora-official/meridian"] .meridian-unlocks > span {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 2px;
+    justify-content: center;
+    gap: 3px;
     white-space: nowrap;
 }
 [data-app-workspace="vastora-official/meridian"] .meridian-quality-meta {
@@ -191,5 +191,50 @@
     [data-app-workspace="vastora-official/meridian"] .meridian-quality > button {
         min-height: 44px;
         min-width: 44px;
+    }
+}
+
+[data-app-workspace="vastora-official/meridian"] .meridian-quality-score .quality-grade {
+    border: 0;
+    padding: 0;
+    background: transparent;
+    font-size: 18px;
+    line-height: 24px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+[data-app-workspace="vastora-official/meridian"] .meridian-quality-score .quality-grade-unknown {
+    font-size: 11px;
+    font-weight: 400;
+}
+@media (max-width: 639px) {
+    [data-app-workspace="vastora-official/meridian"] .meridian-unlocks > span {
+        flex-direction: column;
+        gap: 2px;
+    }
+}
+
+@media (max-width: 1023px) {
+    [data-app-workspace="vastora-official/meridian"] .meridian-node-list :is([data-application-id], [data-landing-node-id]) {
+        position: relative;
+        gap: 8px 12px;
+        padding: 12px;
+    }
+    [data-app-workspace="vastora-official/meridian"] .meridian-node-list :is([data-application-id], [data-landing-node-id]) > td:first-child {
+        padding-right: 44px;
+    }
+    [data-app-workspace="vastora-official/meridian"] .meridian-node-list :is([data-application-id], [data-landing-node-id]) > td:last-child {
+        position: absolute;
+        right: 8px;
+        top: 8px;
+    }
+    [data-app-workspace="vastora-official/meridian"] .meridian-node-list :is([data-application-id], [data-landing-node-id]) > td:nth-child(3) > p,
+    [data-app-workspace="vastora-official/meridian"] .meridian-node-list :is([data-application-id], [data-landing-node-id]) > td:nth-child(4) > p {
+        display: none;
+    }
+}
+@media (max-width: 639px) {
+    [data-app-workspace="vastora-official/meridian"] .apps-three-xui-toolbar > [data-slot="select-trigger"] {
+        width: calc(50% - 6px);
     }
 }
