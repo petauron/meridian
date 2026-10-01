@@ -6,7 +6,7 @@ shared component library; it does not compile Meridian pages into its own web
 application after the migration.
 
 The build uses the reviewed Vastora UI source at commit
-`d194199dbc0dfac0f84f8218e61526a865ba0753`. Set `VASTORA_WEB_SOURCE` to
+`e7a314ad7c3e48092686ce10d6215cfe1d6a6421`. Set `VASTORA_WEB_SOURCE` to
 that checkout's `web/src` directory. The build fails if the checkout points to
 a different commit. `src/index.tsx` exports the versioned `mount`/`update`/
 `unmount` entry used by Center. The output filename is tied to this package
