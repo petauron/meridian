@@ -154,6 +154,7 @@ func (p RoutePeer) Validate() error {
 
 type XrayPlan struct {
 	Revision          uint64               `json:"revision"`
+	NativeEgress      EgressPolicy         `json:"nativeEgress,omitempty"`
 	RealityEndpoints  []RealityEndpoint    `json:"realityEndpoints,omitempty"`
 	HysteriaEndpoints []HysteriaEndpoint   `json:"hysteriaEndpoints,omitempty"`
 	Credentials       []CredentialMaterial `json:"credentials"`
@@ -238,7 +239,7 @@ func RenderXrayConfiguration(plan XrayPlan) ([]byte, error) {
 		})
 	}
 
-	outbounds := []any{map[string]any{"protocol": "freedom", "tag": "direct"}}
+	outbounds := []any{nativeXrayOutbound(plan.NativeEgress)}
 	rules := []any{map[string]any{"type": "field", "inboundTag": []string{"api"}, "outboundTag": "api"}}
 	for _, grant := range projection.grants {
 		peer := projection.peers[grant.EgressID]
@@ -321,6 +322,9 @@ type xrayProjection struct {
 }
 
 func prepareXrayProjection(plan XrayPlan) (xrayProjection, error) {
+	if err := plan.NativeEgress.Validate(); err != nil {
+		return xrayProjection{}, err
+	}
 	if plan.Revision == 0 || len(plan.RealityEndpoints)+len(plan.HysteriaEndpoints) == 0 || len(plan.RealityEndpoints)+len(plan.HysteriaEndpoints) > 256 || len(plan.Credentials) > 65536 || len(plan.Grants) > 65536 || len(plan.Peers) > 1024 {
 		return xrayProjection{}, errors.New("meridian: invalid Xray plan")
 	}
