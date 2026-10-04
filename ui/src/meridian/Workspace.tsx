@@ -16,6 +16,7 @@ import { api } from "@/api";
 import type { InstalledAppInstance } from "@/views/installed-apps-model";
 import { publicationNeedsAttention, showInstalledNode } from "@/views/installed-apps-model";
 import { catalogInstallBlocked, copy } from "@/views/shared";
+import { MeridianTrafficPanel } from "./Traffic";
 import { MeridianLinkTests } from "./LinkTests";
 import { SelectControl } from "@/components/SelectControl";
 import { ipQualityCheckForAddress } from "@/views/ipQualityModel";
@@ -86,6 +87,7 @@ export function MeridianWorkspace({ group, data, language, mutate, onManage, onU
           <LandingTableRows language={language} search={search} purpose={purpose} order={order} siteNames={siteNames} data={data} mutate={mutate} onCompare={(nodeId) => compareRoute("", nodeId)} />
         </TableBody>
       </Table></div></TabsContent>
+      <TabsContent value="traffic"><MeridianTrafficPanel data={data} language={language} /></TabsContent>
       <TabsContent value="network"><MeridianLinkTests instances={entries} language={language} entryId={entryId} landingId={landingId} onEntryChange={setEntryId} onLandingChange={setLandingId} /></TabsContent>
     </Tabs>
   </section>;
