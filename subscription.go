@@ -17,6 +17,7 @@ type PublishedRoute struct {
 	Grant                 RouteGrant   `json:"grant"`
 	Protocol              ProtocolKind `json:"protocol"`
 	EntryName             string       `json:"entryName"`
+	EgressNameSuffix      string       `json:"egressNameSuffix,omitempty"`
 	EgressRegionPrefix    string       `json:"egressRegionPrefix,omitempty"`
 	BaseLink              string       `json:"baseLink"`
 	RouteLink             string       `json:"routeLink"`
@@ -356,6 +357,9 @@ func composeMihomo(native []byte, accountID string, mode PublishingMode, routes 
 }
 
 func validatePublishedRouteScope(item PublishedRoute, accountID string) error {
+	if item.EgressNameSuffix != "" && (!validDisplayName(item.EgressNameSuffix) || strings.ContainsAny(item.EgressNameSuffix, "|｜")) {
+		return errors.New("meridian: invalid landing name suffix")
+	}
 	if item.Grant.Validate() != nil || item.Grant.AccountID != accountID || item.Protocol != VLESSReality || !ValidIdentity(item.BaseProtocolIdentity) || !ValidIdentity(item.RouteProtocolIdentity) || !validDisplayName(item.EntryName) || item.EgressRegionPrefix != "" && (!validDisplayName(item.EgressRegionPrefix) || strings.ContainsAny(item.EgressRegionPrefix, "|｜")) {
 		return errors.New("meridian: published route scope does not match")
 	}
@@ -387,5 +391,5 @@ func routeName(item PublishedRoute) string {
 	if item.EgressRegionPrefix != "" {
 		prefix = item.EgressRegionPrefix + "·落地"
 	}
-	return prefix + "｜" + strings.TrimSpace(entry)
+	return prefix + item.EgressNameSuffix + "｜" + strings.TrimSpace(entry)
 }
