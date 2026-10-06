@@ -89,3 +89,12 @@ func TestRenderSubscriptionsRejectRoutedHysteria(t *testing.T) {
 		t.Fatal("routed Hysteria Mihomo subscription was accepted")
 	}
 }
+
+func TestRouteNameLandingSuffix(t *testing.T) {
+	for _, suffix := range []string{"", "ATT", "BGP"} {
+		item := PublishedRoute{EntryName: "🇺🇸 美国｜Entry", EgressRegionPrefix: "🇺🇸 美国", EgressNameSuffix: suffix}
+		if got, want := routeName(item), "🇺🇸 美国·落地"+suffix+"｜Entry"; got != want {
+			t.Fatalf("got %q want %q", got, want)
+		}
+	}
+}
