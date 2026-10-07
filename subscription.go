@@ -391,23 +391,23 @@ func validatePublishedRouteLinks(item PublishedRoute) error {
 func compactEntryName(name string) string {
 	switch strings.TrimSpace(name) {
 	case "AKKO-CN2":
-		return "AKKO-C"
+		return "AKKO-CN2"
 	case "VMISS-CN2":
-		return "VMISS-C"
+		return "VMISS-CN2"
 	case "DataWave-CN2":
-		return "DW-C"
+		return "DW-CN2"
 	case "ShanDun-CN2":
-		return "SD-C"
+		return "SD-CN2"
 	case "CN2 FXTRANSIT":
-		return "FX-C"
+		return "FX-CN2"
 	case "MatrixIDC CN2-1":
-		return "MX-C1"
+		return "MX-CN2①"
 	case "MatrixIDC CN2-2":
-		return "MX-C2"
+		return "MX-CN2②"
 	case "MatrixIDC 4837-1":
-		return "MX-41"
+		return "MX-4837①"
 	case "MatrixIDC 4837-2":
-		return "MX-42"
+		return "MX-4837②"
 	default:
 		return strings.TrimSpace(name)
 	}
@@ -427,13 +427,11 @@ func routeName(item PublishedRoute) string {
 		entry = name
 	}
 	entry = compactEntryName(strings.TrimLeft(entry, "｜| "))
-	if item.EgressNameSuffix != "" {
-		if brand, circuit, ok := strings.Cut(entry, "-"); ok {
-			entry = brand + "-" + item.EgressNameSuffix + circuit
-		} else {
-			entry += "-" + item.EgressNameSuffix
-		}
+	label := item.EgressNameSuffix
+	if label == "" {
+		label = "双跳"
 	}
+	entry = label + "·" + entry
 	prefix := item.EgressRegionPrefix
 	if prefix == "" {
 		prefix = "落地"

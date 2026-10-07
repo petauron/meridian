@@ -36,7 +36,7 @@ func TestRenderLinksReplacesEntryRegionWithLandingRegion(t *testing.T) {
 		t.Fatalf("native subscription changed: %q", text)
 	}
 	routed, err := parseVLESSLink(lines[1])
-	if err != nil || routed.Fragment != "🇹🇼 台湾｜Entry-Alpha" || strings.Contains(routed.Fragment, "🇺🇸") || strings.Contains(routed.Fragment, "｜｜") {
+	if err != nil || routed.Fragment != "🇹🇼 台湾｜双跳·Entry-Alpha" || strings.Contains(routed.Fragment, "🇺🇸") || strings.Contains(routed.Fragment, "｜｜") {
 		t.Fatalf("rendered subscription = %q", text)
 	}
 }
@@ -91,11 +91,11 @@ func TestRenderSubscriptionsRejectRoutedHysteria(t *testing.T) {
 }
 
 func TestRouteNameLandingSuffix(t *testing.T) {
-	for _, suffix := range []string{"", "ATT", "BGP"} {
+	for _, suffix := range []string{"", "家宽", "双跳"} {
 		item := PublishedRoute{EntryName: "🇺🇸 美国｜Entry", EgressRegionPrefix: "🇺🇸 美国", EgressNameSuffix: suffix}
-		want := "🇺🇸 美国｜Entry"
+		want := "🇺🇸 美国｜双跳·Entry"
 		if suffix != "" {
-			want = "🇺🇸 美国｜Entry-" + suffix
+			want = "🇺🇸 美国｜" + suffix + "·Entry"
 		}
 		if got := routeName(item); got != want {
 			t.Fatalf("got %q want %q", got, want)
@@ -105,14 +105,14 @@ func TestRouteNameLandingSuffix(t *testing.T) {
 
 func TestCompactSubscriptionNames(t *testing.T) {
 	cases := []struct{ entry, native, routed string }{
-		{"DataWave-CN2", "DW-C", "DW-C"},
-		{"ShanDun-CN2", "SD-C", "SD-C"},
-		{"CN2 FXTRANSIT", "FX-C", "FX-C"},
-		{"AKKO-CN2", "AKKO-C", "AKKO-C"},
-		{"MatrixIDC CN2-1", "MX-C1", "MX-C1"},
-		{"MatrixIDC CN2-2", "MX-C2", "MX-C2"},
-		{"MatrixIDC 4837-1", "MX-41", "MX-41"},
-		{"MatrixIDC 4837-2", "MX-42", "MX-42"},
+		{"DataWave-CN2", "DW-CN2", "DW-CN2"},
+		{"ShanDun-CN2", "SD-CN2", "SD-CN2"},
+		{"CN2 FXTRANSIT", "FX-CN2", "FX-CN2"},
+		{"AKKO-CN2", "AKKO-CN2", "AKKO-CN2"},
+		{"MatrixIDC CN2-1", "MX-CN2①", "MX-CN2①"},
+		{"MatrixIDC CN2-2", "MX-CN2②", "MX-CN2②"},
+		{"MatrixIDC 4837-1", "MX-4837①", "MX-4837①"},
+		{"MatrixIDC 4837-2", "MX-4837②", "MX-4837②"},
 	}
 	seen := map[string]bool{}
 	reserve := func(name string) {
@@ -130,16 +130,15 @@ func TestCompactSubscriptionNames(t *testing.T) {
 		}
 		reserve(got)
 		for _, landing := range []struct{ region, suffix string }{
-			{"🇺🇸 美国", "A"}, {"🇺🇸 美国", "B"},
+			{"🇺🇸 美国", "家宽"}, {"🇺🇸 美国", "双跳"},
 			{"🇨🇳 台湾", ""}, {"🇭🇰 香港", ""},
 		} {
 			got = routeName(PublishedRoute{EntryName: original, EgressRegionPrefix: landing.region, EgressNameSuffix: landing.suffix})
 			want := landing.region + "｜"
 			if landing.suffix != "" {
-				brand, circuit, _ := strings.Cut(tc.routed, "-")
-				want += brand + "-" + landing.suffix + circuit
+				want += landing.suffix + "·" + tc.routed
 			} else {
-				want += tc.routed
+				want += "双跳·" + tc.routed
 			}
 			if got != want {
 				t.Fatalf("routed name: got %s, want %s", got, want)
