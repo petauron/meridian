@@ -96,13 +96,18 @@ func nativeSubscriptionLines(entries []NativeEntry, accountID string) ([]byte, e
 		if portErr != nil || port < 1 || port > 65535 || totalBytes > maxSubscriptionBytes || protocolLinkIdentity(link, entry.Protocol) != expectedIdentity || strings.TrimSpace(link.Fragment) == "" || len([]rune(link.Fragment)) > MaxDisplayNameLength || link.Query().Get("sni") == "" || entry.Protocol == VLESSReality && link.Query().Get("pbk") == "" {
 			return nil, errors.New("meridian: native subscription identity changed")
 		}
-		name := strings.TrimSpace(link.Fragment)
+		name := compactSubscriptionName(strings.TrimSpace(link.Fragment))
 		routeKey := string(entry.Protocol) + "\x00" + link.Host + "\x00" + link.Query().Get("sni") + "\x00" + link.Query().Get("pbk") + "\x00" + link.Query().Get("sid")
 		if seenNames[name] || seenRoutes[routeKey] {
 			return nil, errors.New("meridian: ambiguous native subscription inventory")
 		}
 		seenNames[name], seenRoutes[routeKey], seenCredentials[credentialKey] = true, true, true
-		lines = append(lines, strings.TrimSpace(entry.Link))
+		line := strings.TrimSpace(entry.Link)
+		if name != strings.TrimSpace(link.Fragment) {
+			raw, _, _ := strings.Cut(line, "#")
+			line = raw + "#" + escapeLinkFragment(name)
+		}
+		lines = append(lines, line)
 	}
 	return []byte(strings.Join(lines, "\n") + "\n"), nil
 }
@@ -117,7 +122,7 @@ func mihomoProxy(entry NativeEntry) (map[string]any, string, error) {
 		return nil, "", errors.New("meridian: invalid subscription port")
 	}
 	query := link.Query()
-	name := strings.TrimSpace(link.Fragment)
+	name := compactSubscriptionName(strings.TrimSpace(link.Fragment))
 	if name == "" {
 		return nil, "", errors.New("meridian: subscription name is required")
 	}
@@ -381,15 +386,57 @@ func validatePublishedRouteLinks(item PublishedRoute) error {
 	return nil
 }
 
+// compactEntryName keeps distinct circuit types and instance numbers. Unknown
+// names remain unchanged rather than losing user-provided identification.
+func compactEntryName(name string) string {
+	switch strings.TrimSpace(name) {
+	case "AKKO-CN2":
+		return "AKKO-C"
+	case "VMISS-CN2":
+		return "VMISS-C"
+	case "DataWave-CN2":
+		return "DW-C"
+	case "ShanDun-CN2":
+		return "SD-C"
+	case "CN2 FXTRANSIT":
+		return "FX-C"
+	case "MatrixIDC CN2-1":
+		return "MX-C1"
+	case "MatrixIDC CN2-2":
+		return "MX-C2"
+	case "MatrixIDC 4837-1":
+		return "MX-41"
+	case "MatrixIDC 4837-2":
+		return "MX-42"
+	default:
+		return strings.TrimSpace(name)
+	}
+}
+
+func compactSubscriptionName(name string) string {
+	prefix, entry, ok := strings.Cut(name, "｜")
+	if !ok {
+		return compactEntryName(name)
+	}
+	return prefix + "｜" + compactEntryName(entry)
+}
+
 func routeName(item PublishedRoute) string {
 	entry := strings.TrimSpace(item.EntryName)
 	if _, name, ok := strings.Cut(entry, "｜"); ok && strings.TrimSpace(name) != "" {
 		entry = name
 	}
-	entry = strings.TrimLeft(entry, "｜| ")
-	prefix := "落地"
-	if item.EgressRegionPrefix != "" {
-		prefix = item.EgressRegionPrefix + "·落地"
+	entry = compactEntryName(strings.TrimLeft(entry, "｜| "))
+	if item.EgressNameSuffix != "" {
+		if brand, circuit, ok := strings.Cut(entry, "-"); ok {
+			entry = brand + "-" + item.EgressNameSuffix + circuit
+		} else {
+			entry += "-" + item.EgressNameSuffix
+		}
 	}
-	return prefix + item.EgressNameSuffix + "｜" + strings.TrimSpace(entry)
+	prefix := item.EgressRegionPrefix
+	if prefix == "" {
+		prefix = "落地"
+	}
+	return prefix + "｜" + entry
 }
