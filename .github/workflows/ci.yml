@@ -73,10 +73,3 @@ jobs:
           test "$(wc -c < "$bundle.css")" -le 4194304
           ! grep -Fq 'process.env.NODE_ENV' "$bundle.js"
           echo "version=$version" >> "$GITHUB_OUTPUT"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: meridian-ui-${{ steps.ui_bundle.outputs.version }}
-          path: |
-            ui/dist/ui-meridian-${{ steps.ui_bundle.outputs.version }}.js
-            ui/dist/ui-meridian-${{ steps.ui_bundle.outputs.version }}.css
-          if-no-files-found: error

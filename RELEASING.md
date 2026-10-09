@@ -22,3 +22,6 @@ production catalog. That remains a separately reviewed catalog operation.
 Local workflow edits alone do not activate releases. Push/review the changes,
 then verify the first version PR CI and release run before calling the migration
 complete. No local builds or tests are implied by this configuration change.
+
+CI builds and checks the UI but does not upload its bundle as an Actions
+artifact. The signed application catalog remains the publication channel.
